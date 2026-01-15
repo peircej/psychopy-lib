@@ -4,54 +4,43 @@
 """Create geometric (vector) shapes by defining vertex locations."""
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License
 
-import numpy
+from __future__ import absolute_import, print_function
+
+from builtins import str
+from past.builtins import basestring
 
 # Ensure setting pyglet.options['debug_gl'] to False is done prior to any
 # other calls to pyglet or pyglet submodules, otherwise it may not get picked
 # up by the pyglet GL engine and have no effect.
 # Shaders will work but require OpenGL2.0 drivers AND PyOpenGL3.0+
 import pyglet
+pyglet.options['debug_gl'] = False
+GL = pyglet.gl
 
 import psychopy  # so we can get the __path__
 from psychopy import logging
 
 # tools must only be imported *after* event or MovieStim breaks on win32
 # (JWP has no idea why!)
-# from psychopy.tools.monitorunittools import cm2pix, deg2pix
-from psychopy.tools.attributetools import (attributeSetter,  # logAttrib,
-                                           setAttribute, undefined)
-from psychopy.tools import gltools as gt
-from psychopy.visual.basevisual import (
-    BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin, WindowMixin
-)
-from psychopy.colors import Color
-# from psychopy.visual.helpers import setColor
-import psychopy.visual
+from psychopy.tools.monitorunittools import cm2pix, deg2pix
+from psychopy.tools.attributetools import (attributeSetter, logAttrib,
+                                           setAttribute)
+from psychopy.tools.arraytools import val2array
+from psychopy.visual.basevisual import (BaseVisualStim, ColorMixin,
+                                        ContainerMixin)
+from psychopy.visual.helpers import setColor
 
-pyglet.options['debug_gl'] = False
-GL = pyglet.gl
-
-USE_LEGACY_GL = pyglet.version < '2.0'
+from psychopy.contrib import tesselate
+import copy
+import numpy
 
 
 knownShapes = {
-    "triangle": [
-        (+0.0, 0.5),  # Point
-        (-0.5, -0.5),  # Bottom left
-        (+0.5, -0.5),  # Bottom right
-    ],
-    "rectangle": [
-        [-.5,  .5],  # Top left
-        [ .5,  .5],  # Top right
-        [ .5, -.5],  # Bottom left
-        [-.5, -.5],  # Bottom right
-    ],
-    "circle": "circle",  # Placeholder, value calculated on set based on line width
-    "cross": [
-        (-0.1, +0.5),  # up
+    "cross" :  [
+        (-0.1, +0.5), # up
         (+0.1, +0.5),
         (+0.1, +0.1),
         (+0.5, +0.1),  # right
@@ -64,42 +53,14 @@ knownShapes = {
         (-0.5, +0.1),
         (-0.1, +0.1),
     ],
-    "star7": [
-        (0.0, 0.5),
-        (0.09, 0.18),
-        (0.39, 0.31),
-        (0.19, 0.04),
-        (0.49, -0.11),
-        (0.16, -0.12),
-        (0.22, -0.45),
-        (0.0, -0.2),
-        (-0.22, -0.45),
-        (-0.16, -0.12),
-        (-0.49, -0.11),
-        (-0.19, 0.04),
-        (-0.39, 0.31),
-        (-0.09, 0.18)
-    ],
-    "arrow": [
-        (0.0, 0.5),
-        (-0.5, 0.0),
-        (-1/6, 0.0),
-        (-1/6, -0.5),
-        (1/6, -0.5),
-        (1/6, 0.0),
-        (0.5, 0.0)
-    ],
+    "star7" : [(0.0,0.5),(0.09,0.18),(0.39,0.31),(0.19,0.04),
+             (0.49,-0.11),(0.16,-0.12),(0.22,-0.45),(0.0,-0.2),
+             (-0.22,-0.45),(-0.16,-0.12),(-0.49,-0.11),(-0.19,0.04),
+             (-0.39,0.31),(-0.09,0.18)]
 }
-knownShapes['square'] = knownShapes['rectangle']
-knownShapes['star'] = knownShapes['star7']
 
-
-class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
+class BaseShapeStim(BaseVisualStim, ColorMixin, ContainerMixin):
     """Create geometric (vector) shapes by defining vertex locations.
-    This is a lazy-imported class, therefore import using full path 
-    `from psychopy.visual.shape import BaseShapeStim` when inheriting
-    from it.
-    
 
     Shapes can be outlines or filled, set lineColor and fillColor to
     a color name, or None. They can also be rotated (stim.setOri(__)),
@@ -111,37 +72,32 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
     is needed.
 
     v1.84.00: ShapeStim became BaseShapeStim.
-
     """
 
     def __init__(self,
                  win,
                  units='',
                  lineWidth=1.5,
-                 lineColor="black",
+                 lineColor=(1.0, 1.0, 1.0),
+                 lineColorSpace='rgb',
                  fillColor=None,
-                 colorSpace='rgb',
+                 fillColorSpace='rgb',
                  vertices=((-0.5, 0), (0, +0.5), (+0.5, 0)),
                  closeShape=True,
                  pos=(0, 0),
                  size=1,
-                 anchor=None,
                  ori=0.0,
-                 opacity=None,
+                 opacity=1.0,
                  contrast=1.0,
                  depth=0,
                  interpolate=True,
-                 draggable=False,
+                 lineRGB=None,
+                 fillRGB=None,
                  name=None,
                  autoLog=None,
                  autoDraw=False,
-                 # legacy
-                 color=undefined,
-                 lineRGB=undefined,
-                 fillRGB=undefined,
-                 fillColorSpace=undefined,
-                 lineColorSpace=undefined,
-                 ):
+                 color=None,
+                 colorSpace=None):
         """ """  # all doc is in the attributes
         # what local vars are defined (these are the init params) for use by
         # __repr__
@@ -150,53 +106,57 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
 
         # Initialize inheritance and remove unwanted methods; autoLog is set
         # later
-        super(BaseShapeStim, self).__init__(win, units=units, name=name,
-                                            autoLog=False)
-        self.draggable = draggable
+        super(BaseShapeStim, self).__init__(win, units=units,
+                                            name=name, autoLog=False)
 
-        self.pos = pos
+        self.contrast = float(contrast)
+        self.opacity = float(opacity)
+        self.pos = numpy.array(pos, float)
         self.closeShape = closeShape
         self.lineWidth = lineWidth
         self.interpolate = interpolate
 
-        # handle legacy fill color attributes
-        if color is not undefined:
-            fillColor = color
-        if fillColorSpace is not undefined:
-            logging.warning(
-                "fillColorSpace parameter is deprecated. Please use colorSpace instead."
-            )
-            fillColor = Color(fillColor, space=fillColorSpace)
-        if fillRGB is not undefined:
-            logging.warning(
-                "fillRGB parameter is deprecated. Please use lineColor and colorSpace instead"
-            )
-            fillColor = Color(fillColor, space="rgb")
-        # handle legacy border color attributes
-        if lineColorSpace is not undefined:
-            logging.warning(
-                "lineColorSpace parameter is deprecated. Please use colorSpace instead."
-            )
-            lineColor = Color(lineColor, space=lineColorSpace)
-        if lineRGB is not undefined:
-            logging.warning(
-                "lineRGB parameter is deprecated. Please use lineColor and colorSpace instead"
-            )
-            lineColor = Color(lineColor, space="rgb")
-        # Appearance
-        self.colorSpace = colorSpace
-        self.fillColor = fillColor
-        self.lineColor = lineColor
-        self.contrast = contrast
-        if opacity is not None:
-            self.opacity = opacity
+        # Color stuff
+        self.useShaders = False  # don't need to combine textures with colors
+        # set color first but then potentially override
+        self.__dict__['colorSpace'] = colorSpace
+        self.__dict__['lineColorSpace'] = lineColorSpace
+        self.__dict__['fillColorSpace'] = fillColorSpace
+
+        if lineRGB is not None:
+            logging.warning("Use of rgb arguments to stimuli are deprecated."
+                            " Please use color and colorSpace args instead")
+            self.setLineColor(lineRGB, colorSpace='rgb', log=None)
+        elif color is not None and lineColor is None:
+            pass  # user has set color but not lineColor. Don't override that
+        else:
+            self.setLineColor(lineColor, colorSpace=lineColorSpace, log=None)
+
+        if fillRGB is not None:
+            logging.warning("Use of rgb arguments to stimuli are deprecated."
+                            " Please use color and colorSpace args instead")
+            self.setFillColor(fillRGB, colorSpace='rgb', log=None)
+        elif color is not None and fillColor is None:
+            pass  # user has set color but not fillColor. Don't override that
+        else:
+            self.setFillColor(fillColor, colorSpace=fillColorSpace, log=None)
+
+        # if the fillColor and lineColor are not set but color is
+        # then the user probably wants color applied to both
+        if (lineColor is (1.0, 1.0, 1.0)  # check if exactly as the default arg
+                and fillColor is None
+                and color is not None):
+            self.color = color
+        else:
+            self.fillColor = fillColor
+            self.lineColor = lineColor
 
         # Other stuff
         self.depth = depth
         self.ori = numpy.array(ori, float)
-        self.size = size  # make sure that it's 2D
-        self.vertices = vertices  # call attributeSetter
-        self.anchor = anchor
+        self.size = numpy.array([0.0, 0.0]) + size  # make sure that it's 2D
+        if vertices != ():  # flag for when super-init'ing a ShapeStim
+            self.vertices = vertices  # call attributeSetter
         self.autoDraw = autoDraw  # call attributeSetter
 
         # set autoLog now that params have been initialised
@@ -207,17 +167,11 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
 
     @attributeSetter
     def lineWidth(self, value):
-        """Width of the line in **pixels**.
+        """int or float
+        specifying the line width in **pixels**
 
         :ref:`Operations <attrib-operations>` supported.
         """
-        # Enforce float
-        if not isinstance(value, (float, int)):
-            value = float(value)
-
-        if isinstance(self, psychopy.visual.Line):
-            if value > 127:
-                logging.warning("lineWidth is greater than max width supported by OpenGL. For lines thicker than 127px, please use a filled Rect instead.")
         self.__dict__['lineWidth'] = value
 
     def setLineWidth(self, value, operation='', log=None):
@@ -225,56 +179,139 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
 
     @attributeSetter
     def closeShape(self, value):
-        """Should the last vertex be automatically connected to the first?
+        """True or False
+        Should the last vertex be automatically connected to the first?
 
-        If you're using `Polygon`, `Circle` or `Rect`, `closeShape=True` is
+        If you're using `Polygon`, `Circle` or `Rect`, closeShape=True is
         assumed and shouldn't be changed.
         """
         self.__dict__['closeShape'] = value
 
     @attributeSetter
     def interpolate(self, value):
-        """If `True` the edge of the line will be anti-aliased.
+        """True or False
+        If True the edge of the line will be antialiased.
         """
         self.__dict__['interpolate'] = value
 
     @attributeSetter
     def color(self, color):
-        """Set the color of the shape. Sets both `fillColor` and `lineColor`
-        simultaneously if applicable.
-        """
-        ColorMixin.foreColor.fset(self, color)
         self.fillColor = color
         self.lineColor = color
-        return ColorMixin.foreColor.fget(self)
 
-    #---legacy functions---
+    @attributeSetter
+    def fillColor(self, color):
+        """Sets the color of the shape fill.
+
+        See :meth:`psychopy.visual.GratingStim.color` for further details
+        of how to use colors.
+
+        Note that shapes where some vertices point inwards will usually not
+        'fill' correctly.
+        """
+        setColor(self, color, rgbAttrib='fillRGB', colorAttrib='fillColor')
+
+    @attributeSetter
+    def lineColor(self, color):
+        """Sets the color of the shape lines.
+
+        See :meth:`psychopy.visual.GratingStim.color` for further details
+        of how to use colors.
+        """
+        setColor(self, color, rgbAttrib='lineRGB', colorAttrib='lineColor')
+
+    @attributeSetter
+    def fillColorSpace(self, value):
+        """
+        Sets color space for fill color. See documentation for fillColorSpace
+        """
+        self.__dict__['fillColorSpace'] = value
+
+    @attributeSetter
+    def lineColorSpace(self, value):
+        """
+        Sets color space for line color. See documentation for lineColorSpace
+        """
+        self.__dict__['lineColorSpace'] = value
 
     def setColor(self, color, colorSpace=None, operation='', log=None):
-        """Sets both the line and fill to be the same color.
+        """Sets both the line and fill to be the same color
         """
-        ColorMixin.setForeColor(self, color, colorSpace, operation, log)
         self.setLineColor(color, colorSpace, operation, log)
         self.setFillColor(color, colorSpace, operation, log)
 
-    @property
-    def vertices(self):
-        return BaseVisualStim.vertices.fget(self)
+    def setLineRGB(self, value, operation=''):
+        """DEPRECATED since v1.60.05: Please use :meth:`~ShapeStim.lineColor`
+        """
+        self._set('lineRGB', value, operation)
 
-    @vertices.setter
+    def setFillRGB(self, value, operation=''):
+        """DEPRECATED since v1.60.05: Please use :meth:`~ShapeStim.fillColor`
+        """
+        self._set('fillRGB', value, operation)
+
+    def setLineColor(self, color, colorSpace=None, operation='', log=None):
+        """Sets the color of the shape edge.
+
+        See :meth:`psychopy.visual.GratingStim.color` for further details.
+        """
+        setColor(self, color, colorSpace=colorSpace, operation=operation,
+                 rgbAttrib='lineRGB',  # the name for this rgb value
+                 colorAttrib='lineColor')  # the name for this color
+        logAttrib(self, log, 'lineColor', value='%s (%s)' %
+                  (self.lineColor, self.lineColorSpace))
+
+    def setFillColor(self, color, colorSpace=None, operation='', log=None):
+        """Sets the color of the shape fill.
+
+        See :meth:`psychopy.visual.GratingStim.color` for further details.
+
+        Note that shapes where some vertices point inwards will usually not
+        'fill' correctly.
+        """
+        # run the original setColor, which creates color and
+        setColor(self, color, colorSpace=colorSpace, operation=operation,
+                 rgbAttrib='fillRGB',  # the name for this rgb value
+                 colorAttrib='fillColor')  # the name for this color
+        logAttrib(self, log, 'fillColor', value='%s (%s)' %
+                  (self.fillColor, self.fillColorSpace))
+
+    @attributeSetter
+    def size(self, value):
+        """Int/Float or :ref:`x,y-pair <attrib-xy>`.
+        Sets the size of the shape.
+        Size is independent of the units of shape and will simply scale
+        the shape's vertices by the factor given.
+        Use a tuple or list of two values to scale asymmetrically.
+
+        :ref:`Operations <attrib-operations>` supported.
+        """
+        self.__dict__['size'] = numpy.array(value, float)
+        self._needVertexUpdate = True
+
+    def setSize(self, value, operation='', log=None):
+        """Usually you can use 'stim.attribute = value' syntax instead,
+        but use this method if you need to suppress the log message
+        """
+        setAttribute(self, 'size', value, log,
+                     operation)  # calls attributeSetter
+
+    @attributeSetter
     def vertices(self, value):
-        if value is None:
-            value = "rectangle"
-        # check if this is a name of one of our known shapes
-        if isinstance(value, str) and value in knownShapes:
-            value = knownShapes[value]
-            if value == "circle":
-                # If circle is requested, calculate how many points are needed for the gap between line rects to be < 1px
-                value = self._calculateMinEdges(self.lineWidth, threshold=5)
-        if isinstance(value, int):
-            value = self._calcEquilateralVertices(value)
+        """A list of lists or a numpy array (Nx2) specifying xy positions of
+        each vertex, relative to the center of the field.
+
+        If you're using `Polygon`, `Circle` or `Rect`, this shouldn't be used.
+
+        :ref:`Operations <attrib-operations>` supported.
+        """
+        self.__dict__['vertices'] = numpy.array(value, float)
+
         # Check shape
-        WindowMixin.vertices.fset(self, value)
+        if not (self.vertices.shape == (2,) or
+                (len(self.vertices.shape) == 2 and
+                 self.vertices.shape[1] == 2)):
+            raise ValueError("New value for setXYs should be 2x1 or Nx2")
         self._needVertexUpdate = True
 
     def setVertices(self, value=None, operation='', log=None):
@@ -283,45 +320,8 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
         """
         setAttribute(self, 'vertices', value, log, operation)
 
-    @staticmethod
-    def _calcEquilateralVertices(edges, radius=0.5):
-        """
-        Get vertices for an equilateral shape with a given number of sides, will assume radius is 0.5 (relative) but
-        can be manually specified
-        """
-        d = numpy.pi * 2 / edges
-        vertices = numpy.asarray(
-            [numpy.asarray((numpy.sin(e * d), numpy.cos(e * d))) * radius
-             for e in range(int(round(edges)))])
-        return vertices
-
-    @staticmethod
-    def _calculateMinEdges(lineWidth, threshold=180):
-        """
-        Calculate how many points are needed in an equilateral polygon for the gap between line rects to be < 1px and
-        for corner angles to exceed a threshold.
-
-        In other words, how many edges does a polygon need to have to appear smooth?
-
-        lineWidth : int, float, np.ndarray
-            Width of the line in pixels
-
-        threshold : int
-            Maximum angle (degrees) for corners of the polygon, useful for drawing a circle. Supply 180 for no maximum
-            angle.
-        """
-        # sin(theta) = opp / hyp, we want opp to be 1/8 (meaning gap between rects is 1/4px, 1/2px in retina)
-        opp = 1/8
-        hyp = lineWidth / 2
-        thetaR = numpy.arcsin(opp / hyp)
-        theta = numpy.degrees(thetaR)
-        # If theta is below threshold, use threshold instead
-        theta = min(theta, threshold / 2)
-        # Angles in a shape add up to 360, so theta is 360/2n, solve for n
-        return int((360 / theta) / 2)
-
-    def _drawLegacyGL(self, win, keepMatrix):
-        """Legacy draw the stimulus in its relevant window.
+    def draw(self, win=None, keepMatrix=False):
+        """Draw the stimulus in its relevant window.
 
         You must call this method after every MyWin.flip() if you want the
         stimulus to appear on that frame and then update the screen again.
@@ -334,16 +334,13 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
         if win._haveShaders:
             _prog = self.win._progSignedFrag
             GL.glUseProgram(_prog)
-
         # will check if it needs updating (check just once)
         vertsPix = self.verticesPix
         nVerts = vertsPix.shape[0]
-
         # scale the drawing frame etc...
         if not keepMatrix:
             GL.glPushMatrix()  # push before drawing, pop after
             win.setScale('pix')
-
         # load Null textures into multitexteureARB - or they modulate glColor
         GL.glActiveTexture(GL.GL_TEXTURE0)
         GL.glEnable(GL.GL_TEXTURE_2D)
@@ -358,121 +355,37 @@ class BaseShapeStim(BaseVisualStim, DraggingMixin, ColorMixin, ContainerMixin):
         else:
             GL.glDisable(GL.GL_LINE_SMOOTH)
             GL.glDisable(GL.GL_MULTISAMPLE)
-
+        # .data_as(ctypes.POINTER(ctypes.c_float)))
         GL.glVertexPointer(2, GL.GL_DOUBLE, 0, vertsPix.ctypes)
 
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
         if nVerts > 2:  # draw a filled polygon first
-            if self._fillColor != None:
+            if self.fillRGB is not None:
+                # convert according to colorSpace
+                fillRGB = self._getDesiredRGB(
+                    self.fillRGB, self.fillColorSpace, self.contrast)
                 # then draw
-                GL.glColor4f(*self._fillColor.render('rgba1'))
+                GL.glColor4f(fillRGB[0], fillRGB[1], fillRGB[2], self.opacity)
                 GL.glDrawArrays(GL.GL_POLYGON, 0, nVerts)
-
-        if self._borderColor != None and self.lineWidth != 0.0:
+        if self.lineRGB is not None and self.lineWidth != 0.0:
+            lineRGB = self._getDesiredRGB(
+                self.lineRGB, self.lineColorSpace, self.contrast)
             # then draw
             GL.glLineWidth(self.lineWidth)
-            if self.opacity is not None:
-                borderRGBA = self._borderColor.render('rgba1')
-                borderRGBA[-1] = self.opacity  # override opacity
-                GL.glColor4f(*borderRGBA)
-            else:
-                GL.glColor4f(*self._borderColor.render('rgba1'))
+            GL.glColor4f(lineRGB[0], lineRGB[1], lineRGB[2], self.opacity)
             if self.closeShape:
                 GL.glDrawArrays(GL.GL_LINE_LOOP, 0, nVerts)
             else:
                 GL.glDrawArrays(GL.GL_LINE_STRIP, 0, nVerts)
-
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
         if win._haveShaders:
             GL.glUseProgram(0)
-
         if not keepMatrix:
             GL.glPopMatrix()
-
-    def draw(self, win=None, keepMatrix=False):
-        """Draw the stimulus in its relevant window.
-
-        You must call this method after every MyWin.flip() if you want the
-        stimulus to appear on that frame and then update the screen again.
-        """
-        # The keepMatrix option is needed by Aperture
-        if win is None:
-            win = self.win
-        self._selectWindow(win)
-
-        if USE_LEGACY_GL:
-            self._drawLegacyGL(win, keepMatrix)
-            return
-
-        win.setOrthographicView()
-
-        # will check if it needs updating (check just once)
-        vertsPix = self.verticesPix
-
-        if vertsPix is None or vertsPix.shape[0] < 2:  # nothing to draw
-            return
-
-        if self.interpolate:
-            gt.enable('GL_LINE_SMOOTH')
-            gt.enable('GL_MULTISAMPLE')
-        else:
-            gt.disable('GL_LINE_SMOOTH')
-            gt.disable('GL_MULTISAMPLE')
-
-        # bind shader program
-        _prog = self.win._progSignedFrag
-        gt.useProgram(_prog)
-
-        # if vertsPix.shape[0] > 2:  # draw a filled polygon first
-        if self._fillColor != None:
-            gt.setUniformValue(
-                _prog, 
-                b'uColor', 
-                self._fillColor.render('rgba1'))
-            gt.setUniformMatrix(
-                _prog, 
-                b'uProjectionMatrix',
-                win._projectionMatrix,
-                transpose=True)
-            gt.setUniformMatrix(
-                _prog, 
-                b'uModelViewMatrix',
-                win._viewMatrix,
-                transpose=True)
-            gt.drawClientArrays(
-                {'gl_Vertex': self.verticesPix},
-                'GL_TRIANGLES')
-
-        # draw the border
-        if self._borderColor != None and self.lineWidth != 0.0:
-            gt.setLineWidth(self.lineWidth)
-            borderRGBA = self._borderColor.render('rgba1')
-            if self.opacity is not None:
-                borderRGBA[-1] = self.opacity  # override opacity
-            gt.setUniformValue(_prog, b'uColor', borderRGBA)
-            gt.setUniformMatrix(
-                _prog, 
-                b'uProjectionMatrix', 
-                win._projectionMatrix,
-                transpose=True)
-            gt.setUniformMatrix(
-                _prog, 
-                b'uModelViewMatrix', 
-                win._viewMatrix,
-                transpose=True)
-            gt.drawClientArrays(
-                {'gl_Vertex': self.verticesPix},
-                'GL_LINE_LOOP' if self.closeShape else 'GL_LINE_STRIP')
-
-        gt.useProgram(None)
 
 
 class ShapeStim(BaseShapeStim):
     """A class for arbitrary shapes defined as lists of vertices (x,y).
-    This is a lazy-imported class, therefore import using full path 
-    `from psychopy.visual.shape import ShapeStim` when inheriting
-    from it.
 
     Shapes can be lines, polygons (concave, convex, self-crossing), or have
     holes or multiple regions.
@@ -500,152 +413,60 @@ class ShapeStim(BaseShapeStim):
     Changed Nov 2015: v1.84.00. Now allows filling of complex shapes. This
     is almost completely backwards compatible (see changelog). The
     old version is accessible as `psychopy.visual.BaseShapeStim`.
-
-    Parameters
-    ----------
-    win : :class:`~psychopy.visual.Window`
-        Window this shape is being drawn to. The stimulus instance will
-        allocate its required resources using that Windows context. In many
-        cases, a stimulus instance cannot be drawn on different windows
-        unless those windows share the same OpenGL context, which permits
-        resources to be shared between them.
-    units : str
-        Units to use when drawing. This will affect how parameters and
-        attributes `pos`, `size` and `radius` are interpreted.
-    colorSpace : str
-        Sets the colorspace, changing how values passed to `lineColor` and
-        `fillColor` are interpreted.
-    lineWidth : float
-        Width of the shape outline.
-    lineColor, fillColor : array_like, str, :class:`~psychopy.colors.Color` or None
-        Color of the shape outline and fill. If `None`, a fully
-        transparent color is used which makes the fill or outline invisible.
-    vertices : array_like
-        Nx2 array of points (eg., `[[-0.5, 0], [0, 0.5], [0.5, 0]`).
-    windingRule : :class:`~pyglet.gl.GLenum` or None
-        Winding rule to use for tesselation, default is
-        `GLU_TESS_WINDING_ODD` if `None` is specified.
-    closeShape : bool
-        Close the shape's outline. If `True` the first and last vertex will
-        be joined by an edge. Must be `True` to use tesselation. Default is
-        `True`.
-    pos : array_like
-        Initial position (`x`, `y`) of the shape on-screen relative to
-        the origin located at the center of the window or buffer in `units`.
-        This can be updated after initialization by setting the `pos`
-        property. The default value is `(0.0, 0.0)` which results in no
-        translation.
-    size : array_like, float, int or None
-        Width and height of the shape as `(w, h)` or `[w, h]`. If a single
-        value is provided, the width and height will be set to the same
-        specified value. If `None` is specified, the `size` will be set
-        with values passed to `width` and `height`.
-    ori : float
-        Initial orientation of the shape in degrees about its origin.
-        Positive values will rotate the shape clockwise, while negative
-        values will rotate counterclockwise. The default value for `ori` is
-        0.0 degrees.
-    opacity : float
-        Opacity of the shape. A value of 1.0 indicates fully opaque and 0.0
-        is fully transparent (therefore invisible). Values between 1.0 and
-        0.0 will result in colors being blended with objects in the
-        background. This value affects the fill (`fillColor`) and outline
-        (`lineColor`) colors of the shape.
-    contrast : float
-        Contrast level of the shape (0.0 to 1.0). This value is used to
-        modulate the contrast of colors passed to `lineColor` and
-        `fillColor`.
-    depth : int
-        Depth layer to draw the shape when `autoDraw` is enabled.
-        *DEPRECATED*
-    interpolate : bool
-        Enable smoothing (anti-aliasing) when drawing shape outlines. This
-        produces a smoother (less-pixelated) outline of the shape.
-    draggable : bool
-        Can this stimulus be dragged by a mouse click?
-    name : str
-        Optional name of the stimuli for logging.
-    autoLog : bool
-        Enable auto-logging of events associated with this stimuli. Useful
-        for debugging and to track timing when used in conjunction with
-        `autoDraw`.
-    autoDraw : bool
-        Enable auto drawing. When `True`, the stimulus will be drawn every
-        frame without the need to explicitly call the
-        :py:meth:`~psychopy.visual.ShapeStim.draw` method.
-    color : array_like, str, :class:`~psychopy.colors.Color` or None
-        Synonymous with `fillColor`
     """
+
     # Author: Jeremy Gray, November 2015, using psychopy.contrib.tesselate
-    _tesselMode = 'triangle'  # best for most shapes
 
     def __init__(self,
                  win,
                  units='',
-                 colorSpace='rgb',
-                 fillColor=False,
-                 lineColor=False,
                  lineWidth=1.5,
+                 lineColor='white',
+                 lineColorSpace='rgb',
+                 fillColor=None,
+                 fillColorSpace='rgb',
                  vertices=((-0.5, 0), (0, +0.5), (+0.5, 0)),
                  windingRule=None,  # default GL.GLU_TESS_WINDING_ODD
                  closeShape=True,  # False for a line
                  pos=(0, 0),
                  size=1,
-                 anchor=None,
                  ori=0.0,
                  opacity=1.0,
                  contrast=1.0,
                  depth=0,
                  interpolate=True,
-                 draggable=False,
                  name=None,
                  autoLog=None,
-                 autoDraw=False,
-                 # legacy
-                 color=undefined,
-                 lineRGB=undefined,
-                 fillRGB=undefined,
-                 fillColorSpace=undefined,
-                 lineColorSpace=undefined
-                 ):
-
+                 autoDraw=False):
+        """
+        """
         # what local vars are defined (init params, for use by __repr__)
         self._initParamsOrig = dir()
         self._initParamsOrig.remove('self')
 
-        super(ShapeStim, self).__init__(
-            win,
-            units=units,
-            lineWidth=lineWidth,
-            colorSpace=colorSpace,
-            lineColor=lineColor,
-            fillColor=fillColor,
-            vertices=None,  # dummy verts
-            closeShape=self.closeShape,
-            pos=pos,
-            size=size,
-            anchor=anchor,
-            ori=ori,
-            opacity=opacity,
-            contrast=contrast,
-            depth=depth,
-            interpolate=interpolate,
-            draggable=draggable,
-            name=name,
-            autoLog=False,
-            autoDraw=autoDraw,
-            # legacy
-            color=color,
-            lineRGB=lineRGB,
-            fillRGB=fillRGB,
-            fillColorSpace=fillColorSpace,
-            lineColorSpace=lineColorSpace
-        )
+        super(ShapeStim, self).__init__(win,
+                                        units=units,
+                                        lineWidth=lineWidth,
+                                        lineColor=lineColor,
+                                        lineColorSpace=lineColorSpace,
+                                        fillColor=fillColor,
+                                        fillColorSpace=fillColorSpace,
+                                        vertices=(),  # dummy verts
+                                        closeShape=self.closeShape,
+                                        pos=pos,
+                                        size=size,
+                                        ori=ori,
+                                        opacity=opacity,
+                                        contrast=contrast,
+                                        depth=depth,
+                                        interpolate=interpolate,
+                                        name=name,
+                                        autoLog=False,
+                                        autoDraw=autoDraw)
 
         self.closeShape = closeShape
         self.windingRule = windingRule
         self.vertices = vertices
-        self.border = vertices
 
         # remove deprecated params (from ShapeStim.__init__):
         self._initParams = self._initParamsOrig
@@ -656,22 +477,19 @@ class ShapeStim(BaseShapeStim):
         if self.autoLog:
             logging.exp("Created %s = %s" % (self.name, str(self)))
 
-    def _legacyTesselate(self, newVertices):
-        """Legacy tessellation method for ShapeStim.
+    def _tesselate(self, newVertices):
+        """Set the .vertices and .border to new values, invoking tessellation.
         """
         # TO-DO: handle borders properly for multiloop stim like holes
         # likely requires changes in ContainerMixin to iterate over each
         # border loop
-        from psychopy.contrib import tesselate
-        import copy
 
         self.border = copy.deepcopy(newVertices)
-        tessVertices = []  # define to keep the linter happy
         if self.closeShape:
             # convert original vertices to triangles (= tesselation) if
             # possible. (not possible if closeShape is False, don't even try)
             GL.glPushMatrix()  # seemed to help at one point, superfluous?
-            if getattr(self, "windingRule", False):
+            if self.windingRule:
                 GL.gluTessProperty(tesselate.tess, GL.GLU_TESS_WINDING_RULE,
                                    self.windingRule)
             if hasattr(newVertices[0][0], '__iter__'):
@@ -680,7 +498,7 @@ class ShapeStim(BaseShapeStim):
                 loops = [newVertices]
             tessVertices = tesselate.tesselate(loops)
             GL.glPopMatrix()
-            if getattr(self, "windingRule", False):
+            if self.windingRule:
                 GL.gluTessProperty(tesselate.tess, GL.GLU_TESS_WINDING_RULE,
                                    tesselate.default_winding_rule)
 
@@ -694,35 +512,8 @@ class ShapeStim(BaseShapeStim):
             initVertices = tessVertices
         self.__dict__['_tesselVertices'] = numpy.array(initVertices, float)
 
-    def _tesselate(self, newVertices):
-        """Set the `.vertices` and `.border` to new values, invoking
-        tessellation.
-
-        Parameters
-        ----------
-        newVertices : array_like
-            Nx2 array of points (eg., `[[-0.5, 0], [0, 0.5], [0.5, 0]`).
-
-        """
-        if USE_LEGACY_GL:
-            self._legacyTesselate(newVertices)
-            return
-
-        if len(newVertices) < 3:
-            self.closeShape = False
-
-        if not hasattr(self, '_tesselMode'):
-            self._tesselMode = 'triangle'
-        
-        vertices, _, _, faces = gt.tesselate(newVertices, mode=self._tesselMode)
-
-        # unpack the vertices into a numpy array
-        initVertices = numpy.ascontiguousarray(vertices)[faces.flatten()]
-
-        self.__dict__['_tesselVertices'] = numpy.array(initVertices, float)
-
-    @property
-    def vertices(self):
+    @attributeSetter
+    def vertices(self, newVerts):
         """A list of lists or a numpy array (Nx2) specifying xy positions of
         each vertex, relative to the center of the field.
 
@@ -730,33 +521,40 @@ class ShapeStim(BaseShapeStim):
 
         :ref:`Operations <attrib-operations>` supported with `.setVertices()`.
         """
-        return WindowMixin.vertices.fget(self)
-
-    @vertices.setter
-    def vertices(self, value):
         # check if this is a name of one of our known shapes
-        if isinstance(value, str) and value in knownShapes:
-            value = knownShapes[value]
-        if isinstance(value, str) and value == "circle":
-            # If circle is requested, calculate how many points are needed for the gap between line rects to be < 1px
-            value = self._calculateMinEdges(self.lineWidth, threshold=5)
-        if isinstance(value, int):
-            value = self._calcEquilateralVertices(value)
+        if isinstance(newVerts, basestring) and newVerts in knownShapes:
+            newVerts = knownShapes[newVerts]
+
         # Check shape
-        WindowMixin.vertices.fset(self, value)
+        self.__dict__['vertices'] = val2array(newVerts, withNone=True,
+                                              withScalar=True, length=2)
         self._needVertexUpdate = True
         self._tesselate(self.vertices)
 
-    def _drawLegacyGL(self, win, keepMatrix):
-        """Legacy draw the stimulus in the relevant window.
+    @property
+    def verticesPix(self):
+        """This determines the coordinates of the vertices for the
+        current stimulus in pixels, accounting for size, ori, pos and units
+        """
+        # because this is a property getter we can check /on-access/ if it
+        # needs updating :-)
+        if self._needVertexUpdate:
+            self._updateVertices()
+        return self.__dict__['verticesPix']
 
-        You must call this method after every `win.flip()` if you want the
-        stimulus to appear on that frame and then update the screen again.
+    def draw(self, win=None, keepMatrix=False):
+        """Draw the stimulus in the relevant window. You must call this method
+        after every win.flip() if you want the stimulus to appear on that
+        frame and then update the screen again.
         """
         # mostly copied from BaseShapeStim. Uses GL_TRIANGLES and depends on
         # two arrays of vertices: tesselated (for fill) & original (for
         # border) keepMatrix is needed by Aperture, although Aperture
         # currently relies on BaseShapeStim instead
+
+        if win is None:
+            win = self.win
+        self._selectWindow(win)
 
         # scale the drawing frame etc...
         if not keepMatrix:
@@ -767,9 +565,6 @@ class ShapeStim(BaseShapeStim):
         if win._haveShaders:
             _prog = self.win._progSignedFrag
             GL.glUseProgram(_prog)
-
-        # will check if it needs updating (check just once)
-        vertsPix = self.verticesPix
 
         # load Null textures into multitexteureARB - or they modulate glColor
         GL.glActiveTexture(GL.GL_TEXTURE0)
@@ -785,22 +580,25 @@ class ShapeStim(BaseShapeStim):
         else:
             GL.glDisable(GL.GL_LINE_SMOOTH)
             GL.glDisable(GL.GL_MULTISAMPLE)
-
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
 
         # fill interior triangles if there are any
         if (self.closeShape and
                 self.verticesPix.shape[0] > 2 and
-                self._fillColor != None):
+                self.fillRGB is not None):
             GL.glVertexPointer(2, GL.GL_DOUBLE, 0, self.verticesPix.ctypes)
-            GL.glColor4f(*self._fillColor.render('rgba1'))
+            fillRGB = self._getDesiredRGB(self.fillRGB, self.fillColorSpace,
+                                          self.contrast)
+            GL.glColor4f(fillRGB[0], fillRGB[1], fillRGB[2], self.opacity)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.verticesPix.shape[0])
 
         # draw the border (= a line connecting the non-tesselated vertices)
-        if self._borderColor != None and self.lineWidth:
+        if self.lineRGB is not None and self.lineWidth:
             GL.glVertexPointer(2, GL.GL_DOUBLE, 0, self._borderPix.ctypes)
+            lineRGB = self._getDesiredRGB(self.lineRGB, self.lineColorSpace,
+                                          self.contrast)
             GL.glLineWidth(self.lineWidth)
-            GL.glColor4f(*self._borderColor.render('rgba1'))
+            GL.glColor4f(lineRGB[0], lineRGB[1], lineRGB[2], self.opacity)
             if self.closeShape:
                 gl_line = GL.GL_LINE_LOOP
             else:
@@ -808,90 +606,7 @@ class ShapeStim(BaseShapeStim):
             GL.glDrawArrays(gl_line, 0, self._borderPix.shape[0])
 
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
         if win._haveShaders:
             GL.glUseProgram(0)
-
         if not keepMatrix:
             GL.glPopMatrix()
-
-    def draw(self, win=None, keepMatrix=False):
-        """Draw the stimulus in the relevant window.
-
-        You must call this method after every `win.flip()` if you want the
-        stimulus to appear on that frame and then update the screen again.
-
-        Parameters
-        ----------
-        win : :class:`~psychopy.visual.Window`, optional
-            Window to draw the stimulus in. If not specified, the stimulus
-            will be drawn in the window specified at initialization.
-        keepMatrix : bool, optional
-            *DEPRECATED* If `True`, the current transformation matrix will be 
-            preserved. This is useful when drawing multiple stimuli with the 
-            same transformation matrix. Default is `False`. 
-            
-        """
-        if win is None:
-            win = self.win
-        self._selectWindow(win)
-
-        # legacy pipeline
-        if USE_LEGACY_GL:
-            self._drawLegacyGL(win, keepMatrix)
-            return
-
-        # scale the drawing frame etc...
-        win.setScale('pix')
-        win.setOrthographicView()
-
-        _prog = self.win._progSignedFrag  # shader program handle
-        gt.useProgram(_prog)
-
-        if self.interpolate:
-            gt.enable('GL_LINE_SMOOTH')
-            gt.enable('GL_MULTISAMPLE')
-        else:
-            gt.disable('GL_LINE_SMOOTH')
-            gt.disable('GL_MULTISAMPLE')
-
-        # fill interior triangles if there are any
-        if (self.closeShape and
-                self.verticesPix.shape[0] > 2 and
-                self._fillColor != None):
-            gt.setUniformValue(
-                _prog, b'uColor', self._fillColor.render('rgba1'))
-            gt.setUniformMatrix(
-                _prog, 
-                b'uProjectionMatrix', 
-                win._projectionMatrix, 
-                transpose=True)
-            gt.setUniformMatrix(
-                _prog, 
-                b'uModelViewMatrix', 
-                win._viewMatrix, 
-                transpose=True)
-            gt.drawClientArrays(
-                {'gl_Vertex': self.verticesPix},
-                'GL_TRIANGLES')
-
-        # draw the border (= a line connecting the non-tesselated vertices)
-        if self._borderColor != None and self.lineWidth:
-            GL.glLineWidth(self.lineWidth)
-            gt.setUniformValue(
-                _prog, b'uColor', self._borderColor.render('rgba1'))
-            gt.setUniformMatrix(
-                _prog, 
-                b'uProjectionMatrix', 
-                win._projectionMatrix, 
-                transpose=True)
-            gt.setUniformMatrix(
-                _prog, 
-                b'uModelViewMatrix', 
-                win._viewMatrix, 
-                transpose=True)
-            gt.drawClientArrays(
-                {'gl_Vertex': self._borderPix},
-                'GL_LINE_LOOP' if self.closeShape else 'GL_LINE_STRIP')
-
-        gt.useProgram(None)

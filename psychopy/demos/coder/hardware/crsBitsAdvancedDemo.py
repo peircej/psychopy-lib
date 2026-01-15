@@ -8,7 +8,7 @@ It also acts as a test routine to make sure your device is working and that the
 bits.py module is intact. 
 
 The bits.py module mostly provides wrapper functions for getting control of the
-CRS hardware family, Bits++, Bits#, Display++ and their variants. ViSaGe devices
+CRS hardware famility, Bits++, Bits#, Display++ and their variants. ViSaGe devices
 are not supported unless you have one with a Bits# emulation mode. 
 
 Most but not all of the bits.py commands are tested. Similarly
@@ -20,8 +20,8 @@ output. Bits# has a stereo goggles port which works differently and is not teste
 support for it currently provided in bits.py.
 
 Stereo via frame interleaving is not recommended on a Display++ due to LCD pixel transition speeds.
-CRS have a 3D version of Display++ which uses polarised galsses and line interleaving. This is not
-specifically implemented in bits.py yet but you can still build an stereo image yourself.
+CRS have a 3D version of Display++ which uses polarised galsses and line interlaving. This is not
+specifically implemente din bits.py yet but you can still build an stereo image yourself.
 
 Bits++ support is relatively minimal with, in particular, digital inputs not being supported.
 
@@ -31,12 +31,10 @@ To work effectively on a Bits++ box you will need an Oscilloscope and:
 You will then observe changes in those outputs.
 
 To work effectively on all other devices you will need to:
-
     Connect DOUT1 (pin 2) to DIN7 (pin 21)
     Connect DOUT5 (pin 6) to DIN8 (pin 24)
     Connect DOUT6 (pin 7) to DIN9 (pin 25)
-
-and connect Analog OUT 1 to Analog IN 1 if you have a Bits# or a Display++
+and Connect Analog OUT 1 TO Analog IN 1 if you have a Bits# or a Display++
 with the optional Analog factures. This will cunningly allow the CRS device to monitor
 its own outputs. Testing both output and input features at once.
 
@@ -45,17 +43,18 @@ Note Screen is the screen number of your CRS connected monitor = 0 or 1.
 (your working in coder after all).
 
 Enter None to see what happens if there is 
-no device and hence no serial comms.
+no device and hnce no serial comms.
 
-Note that the monitor and LUT settings don't really matter much.
+Note that the monitor and LUT sessings don't really matter much.
 
 You will get warnings about stuff being found on the input buffer. This is because the command to
 stop the CRS device from sending data expects a return message to say that data collection has stopped
 but will always find the last chunk of data recorded instead.
 
-See xxxxx for a description of the bits.py approach to CRS hardware and programmer guide.
+See xxxxx for a description of the bits.py appraoch to CRS hardware and programer guide.
 
 """
+from __future__ import absolute_import, division, print_function
 from psychopy import locale_setup, sound, gui, visual, core, data, event, logging
 from psychopy import monitors, filters, gamma 
 from psychopy.hardware import crs
@@ -136,7 +135,7 @@ if expInfo['Device']=='Display++' or expInfo['Device']=='None':
 #=======================================================================================#
 # If Bits# or Display++ initialise the device.                                          #
 # This can also be done via parameter setters but this illustrates the low level send   #
-# commands.                                                                              #
+# comands.                                                                              #
 if  expInfo['Device'] != 'Bits++':
     #bits = crs.BitsSharp(win, mode='bits++') 
     #gamma.setGamma(win.winHandle._dc, 1.0, 1)
@@ -148,7 +147,7 @@ if  expInfo['Device'] != 'Bits++':
     msg='$enableGammaCorrection=['+lutfile+']\r'
     bits.sendMessage(msg)
     bits.read(timeout=0.1)
-    bits.sendMessage(r'$EnableTouchScreen=[OFF]\e')
+    bits.sendMessage('$EnableTouchScreen=[OFF]\e')
     bits.read(timeout=0.1)
     bits.sendMessage('$Stop\r')
     # Clear the buffer
@@ -370,7 +369,7 @@ else: # otherwise carry on
     print("2e: Single shot trigger detected by RTBox  via DIN")
     bits.RTBoxEnable(mode=['down'], map=[('btn1','Din9')])
     
-    # Example of using send trigger to issue a trigger that will pulse Dout6 which would be connected to DIN
+    # Example of using send trigger to issue a trigger that will pulse Dout6 which whould be connected to DIN
     bits.sendTrigger(0b1111111,0,0.004)
     bits.win.flip()  # win.flip needed to finish off the trigger
 
@@ -393,7 +392,7 @@ else: # otherwise carry on
     sleep(5)
 
     #=============================================================================#
-    # Example for making the CRS device beep
+    # Example for makign the CRS device beep
     print("3a: Beep test")
     bits.beep(400,0.5)
     sleep(0.5)
@@ -456,7 +455,7 @@ else: # otherwise carry on
         bits.statusBoxEnable(mode=['CB6','Down'])
         print("Press a button on the Box")
         
-        #Example statusBoxWait command - waits for a button press
+        #Example statusBoxWait commant - waits for a button press
         button = bits.statusBoxWait()
         if button:
             print(button)
@@ -464,7 +463,7 @@ else: # otherwise carry on
         bits.statusBoxEnable(mode=['IO6','Down'])
         print("Press one of first 3 buttons on the Box")
         
-        #Example statusBoxWait command - waits for a button press
+        #Example statusBoxWait commant - waits for a button press
         button = bits.statusBoxWait()
         if button:
             print(button)
@@ -472,7 +471,7 @@ else: # otherwise carry on
         bits.statusBoxEnable(mode=['IO','Down'])
         print("Press of first 3 buttons on the Box")
         
-        #Example statusBoxWait command - waits for a button press
+        #Example statusBoxWait commant - waits for a button press
         button = bits.statusBoxWait()
         if button:
             print(button)
@@ -494,7 +493,7 @@ else: # otherwise carry on
     bits.flush()
 
     #=============================================================================#
-    # More RTBox usage examples
+    # Nore RTBox usage examples
     print("4d: RTBox test")
     bits.flush()
     
@@ -503,7 +502,7 @@ else: # otherwise carry on
         bits.RTBoxEnable(mode=['CB6','Down'])
         print("Press a button on the Box")
         
-        #Example RTBoxWait command - waits for a button press
+        #Example RTBoxWait commant - waits for a button press
         button = bits.RTBoxWait()
         if button:
             print(button)
@@ -511,7 +510,7 @@ else: # otherwise carry on
         bits.RTBoxEnable(mode=['IO6','Down'])
         print("Press one of first 3 buttons on the Box")
         
-        #Example RTBoxWait command - waits for a button press
+        #Example RTBoxWait commant - waits for a button press
         button = bits.RTBoxWait()
         if button:
             print(button)
@@ -519,7 +518,7 @@ else: # otherwise carry on
         bits.RTBoxEnable(mode=['IO','Down'])
         print("Press of first 3 buttons on the Box")
         
-        #Example RTBoxWait command - waits for a button press
+        #Example RTBoxWait commant - waits for a button press
         button = bits.RTBoxWait()
         if button:
             print(button)
@@ -587,14 +586,14 @@ else: # otherwise carry on
         bits.flush()
         
         #=============================================================================#
-        # Example using triggers, goggles and analog all at once
-        # Also test the ability of triggers to service people messing with
-        # Goggles and Analog outs as these all use the same communication channel.
+        # Example using triggers, goggles and anaog all at once
+        # ALso test the ability of triggers to servive people messing with
+        # Goggles and Analog outs as these all use the same communications channel.
         print("5c: Goggles, analog and triggers")
         bits.setAnalog(3,3)
         bits.setTrigger(0b0000000010,0.002,0.002)
         
-        # Test to see if triggers can service lots of toing a froing
+        # Test to see if triggers can servive lots of toing a froing
         # of the analog and goggles outputs.
         bits.startAnalog()
         bits.win.flip()

@@ -1,4 +1,7 @@
 """Tests for psychopy.data.DataHandler"""
+from __future__ import print_function
+
+from builtins import object
 import os, shutil
 import numpy as np
 from tempfile import mkdtemp
@@ -12,7 +15,7 @@ thisDir,filename = os.path.split(os.path.abspath(__file__))
 fixturesPath = os.path.join(thisDir,'..','data')
 
 
-class TestXLSX():
+class TestXLSX(object):
     def setup_class(self):
         self.temp_dir = mkdtemp(prefix='psychopy-tests-testdata')
         self.name = os.path.join(self.temp_dir,'testXlsx')

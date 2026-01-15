@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
 
 global Keyboard
@@ -13,22 +12,6 @@ from .. import Device, Computer
 
 getTime = Computer.getTime
 
-psychopy_key_mappings = {'`': 'quoteleft',
-                         '[': 'bracketleft',
-                         ']': 'bracketright',
-                         '\\': 'backslash',
-                         '/': 'slash',
-                         ';': 'semicolon',
-                         "'": 'apostrophe',
-                         ',': 'comma',
-                         '.': 'period',
-                         '-': 'minus',
-                         '=': 'equal',
-                         '+': 'num_add',
-                         '*': 'num_multiply',
-                         ' ': 'space'
-                         }
-
 
 class ioHubKeyboardDevice(Device):
     """The Keyboard device is used to receive events from a standard USB or PS2
@@ -40,7 +23,7 @@ class ioHubKeyboardDevice(Device):
     originate from a single keyboard device in the experiment.
 
     """
-    use_psychopy_keymap = True
+
     EVENT_CLASS_NAMES = [
         'KeyboardInputEvent',
         'KeyboardPressEvent',
@@ -65,8 +48,6 @@ class ioHubKeyboardDevice(Device):
         self._log_events_file = None
 
         Device.__init__(self, *args, **kwargs)
-
-        ioHubKeyboardDevice.use_psychopy_keymap = self.getConfiguration().get('use_keymap') == 'psychopy'
 
     @classmethod
     def getModifierState(cls):
@@ -107,7 +88,7 @@ class ioHubKeyboardDevice(Device):
 
     def getCurrentDeviceState(self, clear_events=True):
         mods = self.getModifierState()
-        presses = {str(k):v for k,v in list(self._key_states.items())}
+        presses = self._key_states
         dstate = Device.getCurrentDeviceState(self, clear_events)
         dstate['modifiers'] = mods
         dstate['pressed_keys'] = presses
@@ -220,7 +201,7 @@ class KeyboardInputEvent(DeviceEvent):
         #: List of the modifiers that were active when the key was pressed, provide in
         #: online events as a list of the modifier constant labels specified in
         #: iohub.ModifierConstants
-        #: list: Empty if no modifiers are pressed, otherwise each element is the string name of a modifier constant.
+        #: list: Empty if no modifiers are pressed, otherwise each elemnt is the string name of a modifier constant.
         self.modifiers = 0
 
         #: The id or handle of the window that had focus when the key was pressed.
@@ -230,7 +211,7 @@ class KeyboardInputEvent(DeviceEvent):
         #: the unicode char (u'') representation of what key was pressed.
         # For standard character ascii keys (a-z,A-Z,0-9, some punctuation values), and
         #: unicode utf-8 encoded characters that have been successfully detected,
-        #: *char* will be the actual key value pressed as a unicode character.
+        #: *char* will be the the actual key value pressed as a unicode character.
         self.char = u''
 
         #: The id or handle of the window that had focus when the key was pressed.
@@ -277,7 +258,7 @@ class KeyboardPressEvent(KeyboardInputEvent):
     If auto repeat key events are not desired at all, then the keyboard configuration
     setting 'report_auto_repeat_press_events' can be used to disable these
     events by having the ioHub Server filter the unwanted events out. By default
-    this keyboard configuration parameter is set to True.
+    this keyboard configuartion parameter is set to True.
 
     Event Type ID: EventConstants.KEYBOARD_PRESS
 

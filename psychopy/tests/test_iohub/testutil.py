@@ -7,10 +7,9 @@ from psychopy.iohub import launchHubServer, Computer
 
 getTime = Computer.getTime
 
-from psychopy.tests import skip_under_vm
+from psychopy.tests.utils import skip_under_travis
 
-
-@skip_under_vm
+@skip_under_travis
 def startHubProcess():
     io = launchHubServer()
     assert io != None
@@ -21,8 +20,7 @@ def startHubProcess():
 
     return io
 
-
-@skip_under_vm
+@skip_under_travis
 def stopHubProcess():
     from psychopy.iohub.client import ioHubConnection
 

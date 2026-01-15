@@ -1,3 +1,4 @@
+from builtins import object
 from psychopy import web
 import pytest
 
@@ -5,14 +6,14 @@ import pytest
 
 
 @pytest.mark.web
-class TestWeb():
+class TestWeb(object):
     @classmethod
     def setup_class(self):
         try:
             web.requireInternetAccess()
         except web.NoInternetAccessError:
             pytest.skip()
-    def teardown_method(self):
+    def teardown(self):
         pass
 
     def test_setupProxy(self):

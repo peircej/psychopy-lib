@@ -6,16 +6,26 @@ please use the :class:`~psychopy.visual.GratingStim`
 or the :class:`~psychopy.visual.ImageStim` classes.'''
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
-from psychopy.plugins import PluginStub
+from __future__ import absolute_import, print_function
+
+from psychopy.visual.grating import GratingStim
 
 
-class PatchStim(
-    PluginStub,
-    plugin="psychopy-legacy",
-    docsHome="https://psychopy.github.io/psychopy-legacy",
-    docsRef="/coder/PatchStim"
-):
-    pass
+class PatchStim(GratingStim):
+
+    def __init__(self, *args, **kwargs):
+        """
+        Deprecated (as of version 1.74.00):
+        please use the :class:`~psychopy.visual.GratingStim`
+        or the :class:`~psychopy.visual.ImageStim` classes.
+
+        The GratingStim has identical abilities to the PatchStim
+        (but possibly different initial values)
+        whereas the ImageStim is designed to be use for non-cyclic images
+        (photographs, not gratings).
+        """
+        super(PatchStim, self).__init__(*args, **kwargs)
+        self.setImage = self.setTex

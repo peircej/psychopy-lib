@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
 """Functions and classes related to unit conversion respective to a particular
 monitor"""
 
+from __future__ import absolute_import, division, print_function
+
+from builtins import str
+from past.utils import old_div
 from psychopy import monitors
-from psychopy import logging
 import numpy as np
-import re
-from numpy import array, tan, pi, radians, hypot, degrees, arctan
-from math import hypot as hypot3d
+from numpy import array, sin, cos, tan, pi, radians, degrees, hypot
 
 # Maps supported coordinate unit type names to the function that converts
 # the given unit type to PsychoPy OpenGL pix unit space.
@@ -53,8 +54,6 @@ _unit2PixMappings['degFlat'] = _degFlat2pix
 
 
 def _norm2pix(vertices, pos, win):
-    pos = array(pos)
-    vertices = array(vertices)
     if win.useRetina:
         return (pos + vertices) * win.size / 4.0
     else:
@@ -139,9 +138,9 @@ def cm2deg(cm, monitor, correctFlat=False):
         msg = "Monitor %s has no known distance (SEE MONITOR CENTER)"
         raise ValueError(msg % monitor.name)
     if correctFlat:
-        return np.degrees(np.arctan(cm / dist))
+        return np.degrees(np.arctan(old_div(cm, dist)))
     else:
-        return cm / (dist * 0.017455)
+        return old_div(cm, (dist * 0.017455))
 
 
 def deg2cm(degrees, monitor, correctFlat=False):

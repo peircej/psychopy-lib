@@ -1,19 +1,20 @@
 """
 Demo using a custom serial rx parser to generate ioHub Serial Device events.
 
-The _parseserial.py file is also required for this demo, as it contains the
+The parseserial.py file is also required for this demo, as it contains the
 custom parser function that the ioHub Serial device uses during runtime.
 
-** This demo assumes that whatever is written to the device serial port 
-   is simply returned back (echoed) on the device serial port.**
+** This demo assumes that whatever is written out to the serial port is what the
+serial device receives back as rx data. **
 
 """
+from __future__ import print_function
 import time
 from psychopy import core, visual
 from psychopy.iohub import launchHubServer
 
 # Settings for serial port communication.
-SERIAL_PORT = 'COM46'
+SERIAL_PORT = 'COM226'
 BAUDRATE = 19200
 
 # event_parser_info dict:
@@ -31,7 +32,7 @@ BAUDRATE = 19200
 #            if __name__ == '__main__':
 #        condition so it is not run when the file is only imported.
 
-event_parser_info = dict(parser_function="_parseserial.checkForSerialEvents",
+event_parser_info = dict(parser_function="parseserial.checkForSerialEvents",
                          parser_kwargs=dict(var1='not used', var2=1234))
 # configure iohub
 exp_code = 'serial_demo'
@@ -77,8 +78,9 @@ while not keyboard.getPresses():
     for serevt in serial_device.getEvents():
         print(serevt)
 
-# Stop recording serial events.
+# Stop recording events from the PST box and switch off all lamps.
 serial_device.enableEventReporting(False)
 
 # Close the window and quit the program.
+io.quit()
 core.quit()

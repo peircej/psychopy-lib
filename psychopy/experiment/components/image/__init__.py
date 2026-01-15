@@ -2,27 +2,37 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
-from pathlib import Path
+from __future__ import absolute_import, print_function
+
+from os import path
 from psychopy.experiment.components import BaseVisualComponent, Param, getInitVals
 from psychopy.localization import _translate
+
+# the absolute path to the folder containing this path
+thisFolder = path.abspath(path.dirname(__file__))
+iconFile = path.join(thisFolder, 'image.png')
+tooltip = _translate('Image: present images (bmp, jpg, tif...)')
+
+# only use _localized values for label values, nothing functional:
+_localized = {'image': _translate('Image'),
+              'mask': _translate('Mask'),
+              'texture resolution': _translate('Texture resolution'),
+              'flipVert': _translate('Flip vertically'),
+              'flipHoriz': _translate('Flip horizontally'),
+              'interpolate': _translate('Interpolate')}
 
 
 class ImageComponent(BaseVisualComponent):
     """An event class for presenting image-based stimuli"""
 
-    categories = ['Stimuli']
-    targets = ['PsychoPy', 'PsychoJS']
-    iconFile = Path(__file__).parent / 'image.png'
-    tooltip = _translate('Image: present images (bmp, jpg, tif...)')
-
-    def __init__(self, exp, parentName, name='image', image='', mask='',
+    def __init__(self, exp, parentName, name='image', image='None', mask='None',
                  interpolate='linear', units='from exp settings',
                  color='$[1,1,1]', colorSpace='rgb', pos=(0, 0),
-                 size=(0.5, 0.5), anchor="center", ori=0, texRes='128', flipVert=False,
-                 flipHoriz=False, draggable=False,
+                 size=(0.5, 0.5), ori=0, texRes='128', flipVert=False,
+                 flipHoriz=False,
                  startType='time (s)', startVal=0.0,
                  stopType='duration (s)', stopVal=1.0,
                  startEstim='', durationEstim=''):
@@ -34,89 +44,65 @@ class ImageComponent(BaseVisualComponent):
             stopType=stopType, stopVal=stopVal,
             startEstim=startEstim, durationEstim=durationEstim)
         self.type = 'Image'
-        self.url = "https://www.psychopy.org/builder/components/image.html"
+        self.targets = ['PsychoPy', 'PsychoJS']
+        self.url = "http://www.psychopy.org/builder/components/image.html"
         self.exp.requirePsychopyLibs(['visual'])
         # params
-        self.order += ['image',  # Basic tab
-                       'mask', 'texture resolution',  # Texture tab
-                       ]
+        # was set by BaseVisual but for this stim it's advanced
+        self.params['color'].categ = "Advanced"
+        self.params['colorSpace'].categ = "Advanced"
+        self.order += ['image', 'pos', 'size', 'ori', 'opacity']
 
         msg = _translate(
             "The image to be displayed - a filename, including path")
         self.params['image'] = Param(
-            image, valType='file', inputType="file", allowedTypes=[], categ='Basic',
+            image, valType='str', allowedTypes=[],
             updates='constant',
             allowedUpdates=['constant', 'set every repeat', 'set every frame'],
             hint=msg,
-            label=_translate("Image"))
+            label=_localized["image"])
 
         msg = _translate(
             "An image to define the alpha mask through which the image is "
             "seen - gauss, circle, None or a filename (including path)")
         self.params['mask'] = Param(
-            mask, valType='str', inputType="file", allowedTypes=[], categ='Texture',
+            mask, valType='str', allowedTypes=[],
             updates='constant',
             allowedUpdates=['constant', 'set every repeat', 'set every frame'],
             hint=msg,
-            label=_translate("Mask"))
+            label=_localized["mask"], categ="Advanced")
 
         msg = _translate("Resolution of the mask if one is used.")
         self.params['texture resolution'] = Param(
-            texRes, valType='num', inputType="choice", categ='Texture',
+            texRes, valType='code',
             allowedVals=['32', '64', '128', '256', '512'],
             updates='constant', allowedUpdates=[],
             hint=msg,
-            label=_translate("Texture resolution"))
+            label=_localized["texture resolution"], categ="Advanced")
 
         msg = _translate(
             "How should the image be interpolated if/when rescaled")
         self.params['interpolate'] = Param(
-            interpolate, valType='str', inputType="choice", allowedVals=['linear', 'nearest'], categ='Texture',
+            interpolate, valType='str', allowedVals=['linear', 'nearest'],
             updates='constant', allowedUpdates=[],
-            hint=msg, direct=False,
-            label=_translate("Interpolate"))
+            hint=msg,
+            label=_localized["interpolate"], categ="Advanced")
 
         msg = _translate(
             "Should the image be flipped vertically (top to bottom)?")
         self.params['flipVert'] = Param(
-            flipVert, valType='bool', inputType="bool", categ='Layout',
+            flipVert, valType='bool',
             updates='constant', allowedUpdates=[],
             hint=msg,
-            label=_translate("Flip vertically"))
+            label=_localized["flipVert"], categ="Advanced")
 
         msg = _translate(
             "Should the image be flipped horizontally (left to right)?")
         self.params['flipHoriz'] = Param(
-            flipHoriz, valType='bool', inputType="bool", categ='Layout',
+            flipHoriz, valType='bool',
             updates='constant', allowedUpdates=[],
             hint=msg,
-            label=_translate("Flip horizontally"))
-        self.params['anchor'] = Param(
-            anchor, valType='str', inputType="choice", categ='Layout',
-            allowedVals=['center',
-                         'top-center',
-                         'bottom-center',
-                         'center-left',
-                         'center-right',
-                         'top-left',
-                         'top-right',
-                         'bottom-left',
-                         'bottom-right',
-                         ],
-            updates='constant',
-            hint=_translate("Which point on the stimulus should be anchored to its exact position?"),
-            label=_translate("Anchor"))
-        self.params['draggable'] = Param(
-            draggable, valType="code", inputType="bool", categ="Layout",
-            updates="constant",
-            label=_translate("Draggable?"),
-            hint=_translate(
-                "Should this stimulus be moveble by clicking and dragging?"
-            )
-        )
-
-        del self.params['fillColor']
-        del self.params['borderColor']
+            label=_localized["flipHoriz"], categ="Advanced")
 
     def writeInitCode(self, buff):
         # do we need units code?
@@ -130,8 +116,8 @@ class ImageComponent(BaseVisualComponent):
         code = ("{inits[name]} = visual.ImageStim(\n"
                 "    win=win,\n"
                 "    name='{inits[name]}', {units}\n"
-                "    image={inits[image]}, mask={inits[mask]}, anchor={inits[anchor]},\n"
-                "    ori={inits[ori]}, pos={inits[pos]}, draggable={inits[draggable]}, size={inits[size]},\n"
+                "    image={inits[image]}, mask={inits[mask]},\n"
+                "    ori={inits[ori]}, pos={inits[pos]}, size={inits[size]},\n"
                 "    color={inits[color]}, colorSpace={inits[colorSpace]}, opacity={inits[opacity]},\n"
                 "    flipHoriz={inits[flipHoriz]}, flipVert={inits[flipVert]},\n"
                 # no newline - start optional parameters
@@ -171,11 +157,7 @@ class ImageComponent(BaseVisualComponent):
                 "  win : psychoJS.window,\n"
                 "  name : '{inits[name]}', {units}\n"
                 "  image : {inits[image]}, mask : {inits[mask]},\n"
-                "  anchor : {inits[anchor]},\n"
-                "  ori : {inits[ori]}, \n"
-                "  pos : {inits[pos]}, \n"
-                "  draggable: {inits[draggable]},\n"
-                "  size : {inits[size]},\n"
+                "  ori : {inits[ori]}, pos : {inits[pos]}, size : {inits[size]},\n"
                 "  color : new util.Color({inits[color]}), opacity : {inits[opacity]},\n"
                 "  flipHoriz : {inits[flipHoriz]}, flipVert : {inits[flipVert]},\n"
                 # no newline - start optional parameters

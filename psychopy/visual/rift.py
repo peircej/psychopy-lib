@@ -28,7 +28,7 @@ __all__ = ['Rift']
 _HAS_PSYCHXR_ = True
 
 try:
-    import psychxr.drivers.libovr as libovr
+    import psychxr.libovr as libovr
 except ImportError:
     _HAS_PSYCHXR_ = False
 
@@ -42,10 +42,8 @@ import ctypes
 import numpy as np
 import pyglet.gl as GL
 from psychopy.visual import window
-from psychopy.hardware.exceptions import DeviceNotConnectedError
 from psychopy import platform_specific, logging, core
 from psychopy.tools.attributetools import setAttribute
-from psychopy.localization import _translate
 
 try:
     from PIL import Image
@@ -58,120 +56,118 @@ reportNDroppedFrames = 5
 # Look-up tables for PsychXR/LibOVR constants
 #
 
-if _HAS_PSYCHXR_:
-    # Controller types supported by PsychXR
-    RIFT_CONTROLLER_TYPES = {
-        'Xbox': libovr.CONTROLLER_TYPE_XBOX,
-        'Remote': libovr.CONTROLLER_TYPE_REMOTE,
-        'Touch': libovr.CONTROLLER_TYPE_TOUCH,
-        'LeftTouch': libovr.CONTROLLER_TYPE_LTOUCH,
-        'RightTouch': libovr.CONTROLLER_TYPE_RTOUCH,
-        'Object0': libovr.CONTROLLER_TYPE_OBJECT0,
-        'Object1': libovr.CONTROLLER_TYPE_OBJECT1,
-        'Object2': libovr.CONTROLLER_TYPE_OBJECT2,
-        'Object3': libovr.CONTROLLER_TYPE_OBJECT3,
-        libovr.CONTROLLER_TYPE_XBOX: 'Xbox',
-        libovr.CONTROLLER_TYPE_REMOTE: 'Remote',
-        libovr.CONTROLLER_TYPE_TOUCH: 'Touch',
-        libovr.CONTROLLER_TYPE_LTOUCH: 'LeftTouch',
-        libovr.CONTROLLER_TYPE_RTOUCH: 'RightTouch',
-        libovr.CONTROLLER_TYPE_OBJECT0: 'Object0',
-        libovr.CONTROLLER_TYPE_OBJECT1: 'Object1',
-        libovr.CONTROLLER_TYPE_OBJECT2: 'Object2',
-        libovr.CONTROLLER_TYPE_OBJECT3: 'Object3'
-    }
+# Controller types supported by PsychXR
+RIFT_CONTROLLER_TYPES = {
+    'Xbox': libovr.CONTROLLER_TYPE_XBOX,
+    'Remote': libovr.CONTROLLER_TYPE_REMOTE,
+    'Touch': libovr.CONTROLLER_TYPE_TOUCH,
+    'LeftTouch': libovr.CONTROLLER_TYPE_LTOUCH,
+    'RightTouch': libovr.CONTROLLER_TYPE_RTOUCH,
+    'Object0': libovr.CONTROLLER_TYPE_OBJECT0,
+    'Object1': libovr.CONTROLLER_TYPE_OBJECT1,
+    'Object2': libovr.CONTROLLER_TYPE_OBJECT2,
+    'Object3': libovr.CONTROLLER_TYPE_OBJECT3,
+    libovr.CONTROLLER_TYPE_XBOX: 'Xbox',
+    libovr.CONTROLLER_TYPE_REMOTE: 'Remote',
+    libovr.CONTROLLER_TYPE_TOUCH: 'Touch',
+    libovr.CONTROLLER_TYPE_LTOUCH: 'LeftTouch',
+    libovr.CONTROLLER_TYPE_RTOUCH: 'RightTouch',
+    libovr.CONTROLLER_TYPE_OBJECT0: 'Object0',
+    libovr.CONTROLLER_TYPE_OBJECT1: 'Object1',
+    libovr.CONTROLLER_TYPE_OBJECT2: 'Object2',
+    libovr.CONTROLLER_TYPE_OBJECT3: 'Object3'
+}
 
-    # Button types supported by PsychXR
-    RIFT_BUTTON_TYPES = {
-        "A": libovr.BUTTON_A,
-        "B": libovr.BUTTON_B,
-        "RThumb": libovr.BUTTON_RTHUMB,
-        "RShoulder": libovr.BUTTON_RSHOULDER,
-        "X": libovr.BUTTON_X,
-        "Y": libovr.BUTTON_Y,
-        "LThumb": libovr.BUTTON_LTHUMB,
-        "LShoulder": libovr.BUTTON_LSHOULDER,
-        "Up": libovr.BUTTON_UP,
-        "Down": libovr.BUTTON_DOWN,
-        "Left": libovr.BUTTON_LEFT,
-        "Right": libovr.BUTTON_RIGHT,
-        "Enter": libovr.BUTTON_ENTER,
-        "Back": libovr.BUTTON_BACK,
-        "VolUp": libovr.BUTTON_VOLUP,
-        "VolDown": libovr.BUTTON_VOLDOWN,
-        "Home": libovr.BUTTON_HOME,
-    }
+# Button types supported by PsychXR
+RIFT_BUTTON_TYPES = {
+    "A": libovr.BUTTON_A,
+    "B": libovr.BUTTON_B,
+    "RThumb": libovr.BUTTON_RTHUMB,
+    "RShoulder": libovr.BUTTON_RSHOULDER,
+    "X": libovr.BUTTON_X,
+    "Y": libovr.BUTTON_Y,
+    "LThumb": libovr.BUTTON_LTHUMB,
+    "LShoulder": libovr.BUTTON_LSHOULDER,
+    "Up": libovr.BUTTON_UP,
+    "Down": libovr.BUTTON_DOWN,
+    "Left": libovr.BUTTON_LEFT,
+    "Right": libovr.BUTTON_RIGHT,
+    "Enter": libovr.BUTTON_ENTER,
+    "Back": libovr.BUTTON_BACK,
+    "VolUp": libovr.BUTTON_VOLUP,
+    "VolDown": libovr.BUTTON_VOLDOWN,
+    "Home": libovr.BUTTON_HOME,
+}
 
-    # Touch types supported by PsychXR
-    RIFT_TOUCH_TYPES = {
-        "A": libovr.TOUCH_A,
-        "B": libovr.TOUCH_B,
-        "RThumb": libovr.TOUCH_RTHUMB,
-        "RThumbRest": libovr.TOUCH_RTHUMBREST,
-        "RThumbUp": libovr.TOUCH_RTHUMBUP,
-        "RIndexPointing": libovr.TOUCH_RINDEXPOINTING,
-        "X": libovr.TOUCH_X,
-        "Y": libovr.TOUCH_Y,
-        "LThumb": libovr.TOUCH_LTHUMB,
-        "LThumbRest": libovr.TOUCH_LTHUMBREST,
-        "LThumbUp": libovr.TOUCH_LTHUMBUP,
-        "LIndexPointing": libovr.TOUCH_LINDEXPOINTING
-    }
+# Touch types supported by PsychXR
+RIFT_TOUCH_TYPES = {
+    "A": libovr.TOUCH_A,
+    "B": libovr.TOUCH_B,
+    "RThumb": libovr.TOUCH_RTHUMB,
+    "RThumbRest": libovr.TOUCH_RTHUMBREST,
+    "RThumbUp": libovr.TOUCH_RTHUMBUP,
+    "RIndexPointing": libovr.TOUCH_RINDEXPOINTING,
+    "X": libovr.TOUCH_X,
+    "Y": libovr.TOUCH_Y,
+    "LThumb": libovr.TOUCH_LTHUMB,
+    "LThumbRest": libovr.TOUCH_LTHUMBREST,
+    "LThumbUp": libovr.TOUCH_LTHUMBUP,
+    "LIndexPointing": libovr.TOUCH_LINDEXPOINTING
+}
 
-    # Tracked device identifiers
-    RIFT_TRACKED_DEVICE_TYPES = {
-        "HMD": libovr.TRACKED_DEVICE_TYPE_HMD,
-        "LTouch": libovr.TRACKED_DEVICE_TYPE_LTOUCH,
-        "RTouch": libovr.TRACKED_DEVICE_TYPE_RTOUCH,
-        "Touch": libovr.TRACKED_DEVICE_TYPE_TOUCH,
-        "Object0": libovr.TRACKED_DEVICE_TYPE_OBJECT0,
-        "Object1": libovr.TRACKED_DEVICE_TYPE_OBJECT1,
-        "Object2": libovr.TRACKED_DEVICE_TYPE_OBJECT2,
-        "Object3": libovr.TRACKED_DEVICE_TYPE_OBJECT3
-    }
+# Tracked device identifiers
+RIFT_TRACKED_DEVICE_TYPES = {
+    "HMD": libovr.TRACKED_DEVICE_TYPE_HMD,
+    "LTouch": libovr.TRACKED_DEVICE_TYPE_LTOUCH,
+    "RTouch": libovr.TRACKED_DEVICE_TYPE_RTOUCH,
+    "Touch": libovr.TRACKED_DEVICE_TYPE_TOUCH,
+    "Object0": libovr.TRACKED_DEVICE_TYPE_OBJECT0,
+    "Object1": libovr.TRACKED_DEVICE_TYPE_OBJECT1,
+    "Object2": libovr.TRACKED_DEVICE_TYPE_OBJECT2,
+    "Object3": libovr.TRACKED_DEVICE_TYPE_OBJECT3
+}
 
-    # Tracking origin types
-    RIFT_TRACKING_ORIGIN_TYPE = {
-        "floor": libovr.TRACKING_ORIGIN_FLOOR_LEVEL,
-        "eye": libovr.TRACKING_ORIGIN_EYE_LEVEL
-    }
+# Tracking origin types
+RIFT_TRACKING_ORIGIN_TYPE = {
+    "floor": libovr.TRACKING_ORIGIN_FLOOR_LEVEL,
+    "eye": libovr.TRACKING_ORIGIN_EYE_LEVEL
+}
 
-    # Performance hud modes
-    RIFT_PERF_HUD_MODES = {
-        'PerfSummary': libovr.PERF_HUD_PERF_SUMMARY,
-        'LatencyTiming': libovr.PERF_HUD_LATENCY_TIMING,
-        'AppRenderTiming': libovr.PERF_HUD_APP_RENDER_TIMING,
-        'CompRenderTiming': libovr.PERF_HUD_COMP_RENDER_TIMING,
-        'AswStats': libovr.PERF_HUD_ASW_STATS,
-        'VersionInfo': libovr.PERF_HUD_VERSION_INFO,
-        'Off': libovr.PERF_HUD_OFF
-    }
+# Performance hud modes
+RIFT_PERF_HUD_MODES = {
+    'PerfSummary': libovr.PERF_HUD_PERF_SUMMARY,
+    'LatencyTiming': libovr.PERF_HUD_LATENCY_TIMING,
+    'AppRenderTiming': libovr.PERF_HUD_APP_RENDER_TIMING,
+    'CompRenderTiming': libovr.PERF_HUD_COMP_RENDER_TIMING,
+    'AswStats': libovr.PERF_HUD_ASW_STATS,
+    'VersionInfo': libovr.PERF_HUD_VERSION_INFO,
+    'Off': libovr.PERF_HUD_OFF
+}
 
-    # stereo debug hud modes
-    RIFT_STEREO_DEBUG_HUD_MODES = {
-        'Off': libovr.DEBUG_HUD_STEREO_MODE_OFF,
-        'Quad': libovr.DEBUG_HUD_STEREO_MODE_QUAD,
-        'QuadWithCrosshair': libovr.DEBUG_HUD_STEREO_MODE_QUAD_WITH_CROSSHAIR,
-        'CrosshairAtInfinity': libovr.DEBUG_HUD_STEREO_MODE_CROSSHAIR_AT_INFINITY
-    }
+# stereo debug hud modes
+RIFT_STEREO_DEBUG_HUD_MODES = {
+    'Off': libovr.DEBUG_HUD_STEREO_MODE_OFF,
+    'Quad': libovr.DEBUG_HUD_STEREO_MODE_QUAD,
+    'QuadWithCrosshair': libovr.DEBUG_HUD_STEREO_MODE_QUAD_WITH_CROSSHAIR,
+    'CrosshairAtInfinity': libovr.DEBUG_HUD_STEREO_MODE_CROSSHAIR_AT_INFINITY
+}
 
-    # Boundary types
-    RIFT_BOUNDARY_TYPE = {
-        'PlayArea': libovr.BOUNDARY_PLAY_AREA,
-        'Outer': libovr.BOUNDARY_OUTER
-    }
+# Boundary types
+RIFT_BOUNDARY_TYPE = {
+    'PlayArea': libovr.BOUNDARY_PLAY_AREA,
+    'Outer': libovr.BOUNDARY_OUTER
+}
 
-    # mirror modes
-    RIFT_MIRROR_MODES = {
-        'left': libovr.MIRROR_OPTION_LEFT_EYE_ONLY,
-        'right': libovr.MIRROR_OPTION_RIGHT_EYE_ONLY,
-        'distortion': libovr.MIRROR_OPTION_POST_DISTORTION,
-        'default': libovr.MIRROR_OPTION_DEFAULT
-    }
+# mirror modes
+RIFT_MIRROR_MODES = {
+    'left': libovr.MIRROR_OPTION_LEFT_EYE_ONLY,
+    'right': libovr.MIRROR_OPTION_RIGHT_EYE_ONLY,
+    'distortion': libovr.MIRROR_OPTION_POST_DISTORTION,
+    'default': libovr.MIRROR_OPTION_DEFAULT
+}
 
-    # eye types
-    RIFT_EYE_TYPE = {'left': libovr.EYE_LEFT, 'right': libovr.EYE_RIGHT}
-
+# eye types
+RIFT_EYE_TYPE = {'left': libovr.EYE_LEFT, 'right': libovr.EYE_RIGHT}
 
 # ------------------------------------------------------------------------------
 # LibOVR Error Handler
@@ -187,15 +183,10 @@ class LibOVRError(Exception):
 
 class Rift(window.Window):
     """Class provides a display and peripheral interface for the Oculus Rift
-    (see: https://www.oculus.com/) head-mounted display. This is a 
-    lazy-imported class, therefore import using full path 
-    `from psychopy.visual.rift import Rift` when inheriting from it.
-
-
-    Requires PsychXR 0.2.4 to be installed. Setting the `winType='glfw'` is
-    preferred for VR applications.
+    (see: https://www.oculus.com/) head-mounted display.
 
     """
+
     def __init__(
             self,
             fovType='recommended',
@@ -298,7 +289,7 @@ class Rift(window.Window):
 
         self.autoUpdateInput = autoUpdateInput
 
-        # performance statistics
+        # performance statisitics
         # this can be changed while running
         self.warnAppFrameDropped = warnAppFrameDropped
 
@@ -318,15 +309,11 @@ class Rift(window.Window):
                                "exiting.")
 
         if not libovr.isHmdConnected():
-            raise DeviceNotConnectedError(
-                _translate(
-                    "Cannot find any connected HMD, check connections and try again."
-                ),
-                deviceClass=Rift
-            )
+            raise RuntimeError("Cannot find any connected HMD, check " +
+                               "connections and try again.")
 
         # create a VR session, do some initial configuration
-        initResult = libovr.initialize()  # removed logging callback
+        initResult = libovr.initialize(logCallback=_logCallback)
         if libovr.failure(initResult):
             _, msg = libovr.getLastErrorInfo()
             raise LibOVRError(msg)
@@ -451,10 +438,12 @@ class Rift(window.Window):
         kwargs['waitBlanking'] = False
 
         # force checkTiming and quad-buffer stereo off
-        kwargs["checkTiming"] = False  # not used here for now
-        kwargs["stereo"] = False  # false, using our own stuff for stereo
-        kwargs['useFBO'] = True  # true, but uses it's ow FBO logic
-        kwargs['multiSample'] = False  # not for the back buffer of the widow
+        kwargs["checkTiming"] = False
+        kwargs["stereo"] = False
+        kwargs['useFBO'] = True
+        kwargs['multiSample'] = False
+        kwargs['bits'] = False
+        # kwargs['waitBlanking'] = False
 
         # do not allow 'endFrame' to be called until _startOfFlip is called
         self._allowHmdRendering = False
@@ -508,7 +497,7 @@ class Rift(window.Window):
             pass
 
         # shutdown the session completely
-        #libovr.shutdown()
+        libovr.shutdown()
         logging.info('LibOVR session shutdown cleanly.')
 
         try:
@@ -530,18 +519,18 @@ class Rift(window.Window):
             if self._monoscopic:
                 return np.array(
                     (self._hmdBufferSize[0], self._hmdBufferSize[1]),
-                    int)
+                    np.int)
             else:
                 return np.array(
                     (int(self._hmdBufferSize[0] / 2), self._hmdBufferSize[1]),
-                    int)
+                    np.int)
 
     @size.setter
     def size(self, value):
         """Set the size of the window.
 
         """
-        self.__dict__['size'] = np.array(value, int)
+        self.__dict__['size'] = np.array(value, np.int)
 
     def setSize(self, value, log=True):
         setAttribute(self, 'size', value, log=log)
@@ -686,7 +675,7 @@ class Rift(window.Window):
         Examples
         --------
         Generate your own eye poses. These are used when
-        :py:meth:`calcEyePoses` is called::
+        :py:method:`calcEyePoses` is called::
 
             leftEyePose = Rift.createPose((-self.eyeToNoseDistance, 0., 0.))
             rightEyePose = Rift.createPose((self.eyeToNoseDistance, 0., 0.))
@@ -965,7 +954,7 @@ class Rift(window.Window):
 
     def getDevicePose(self, deviceName, absTime=None, latencyMarker=False):
         """Get the pose of a tracked device. For head (HMD) and hand poses
-        (Touch controllers) it is better to use :py:meth:`getTrackingState`
+        (Touch controllers) it is better to use :py:method:`getTrackingState`
         instead.
 
         Parameters
@@ -1013,7 +1002,7 @@ class Rift(window.Window):
         Parameters
         ----------
         absTime : float, optional
-            Absolute time the tracking state refers to. If not specified,
+            Absolute time the the tracking state refers to. If not specified,
             the predicted display time is used.
         latencyMarker : bool, optional
             Set a latency marker upon getting the tracking state. This is used
@@ -1071,7 +1060,7 @@ class Rift(window.Window):
             if trackingState.positionValid and trackingState.orientationValid:
                 print('Tracking valid.')
 
-        It's up to the programmer to determine what to do in such cases. Note
+        It's upto the programmer to determine what to do in such cases. Note
         that tracking may still be valid even if
 
         Get the calibrated origin used for tracking during the sample period
@@ -1129,11 +1118,11 @@ class Rift(window.Window):
         Once this function returns, `setBuffer` may be called and frame
         rendering can commence. The computed eye pose for the selected buffer is
         accessible through the :py:attr:`eyeRenderPose` attribute after calling
-        :py:meth:`setBuffer`. If `monoscopic=True`, the eye poses are set to
+        :py:method:`setBuffer`. If `monoscopic=True`, the eye poses are set to
         the head pose.
 
         The source data specified to `headPose` can originate from the tracking
-        state retrieved by calling :py:meth:`getTrackingState`, or from
+        state retrieved by calling :py:method:`getTrackingState`, or from
         other sources. If a custom head pose is specified (for instance, from a
         motion tracker), you must ensure `head-locking` is enabled to prevent
         the ASW feature of the compositor from engaging. Furthermore, you must
@@ -1475,7 +1464,7 @@ class Rift(window.Window):
         GL.glDepthMask(GL.GL_TRUE)
 
         if clear:
-            self.setColor(self.color, colorSpace=self.colorSpace)  # clear the texture to the window color
+            self.setColor(self.color)  # clear the texture to the window color
             GL.glClear(
                 GL.GL_COLOR_BUFFER_BIT |
                 GL.GL_DEPTH_BUFFER_BIT |
@@ -1543,7 +1532,7 @@ class Rift(window.Window):
                 libovr.EYE_RIGHT)
 
         if clear:
-            self.setColor(self.color, colorSpace=self.colorSpace)  # clear the texture to the window color
+            self.setColor(self.color)  # clear the texture to the window color
             GL.glClearDepth(1.0)
             GL.glDepthMask(GL.GL_TRUE)
             GL.glClear(
@@ -1587,7 +1576,7 @@ class Rift(window.Window):
     @property
     def viewMatrix(self):
         """The view matrix for the current eye buffer. Only valid after a
-        :py:meth:`calcEyePoses` call. Note that setting `viewMatrix` manually
+        :py:method:`calcEyePoses` call. Note that setting `viewMatrix` manually
         will break visibility culling.
 
         """
@@ -1790,7 +1779,7 @@ class Rift(window.Window):
                     libovr.destroyMirrorTexture()
                     libovr.destroyTextureSwapChain(libovr.TEXTURE_SWAP_CHAIN0)
                     libovr.destroy()
-                    #libovr.shutdown()  # avoid error
+                    libovr.shutdown()
 
                 _, msg = libovr.getLastErrorInfo()
                 raise LibOVRError(msg)
@@ -2063,13 +2052,19 @@ class Rift(window.Window):
         if not self._monoscopic:
             libovr.getEyeProjectionMatrix(
                 libovr.EYE_LEFT,
+                self._nearClip,
+                self._farClip,
                 self._projectionMatrix[0])
             libovr.getEyeProjectionMatrix(
                 libovr.EYE_RIGHT,
+                self._nearClip,
+                self._farClip,
                 self._projectionMatrix[1])
         else:
             libovr.getEyeProjectionMatrix(
                 libovr.EYE_LEFT,
+                self._nearClip,
+                self._farClip,
                 self._projectionMatrix)
 
     def getMovieFrame(self, buffer='mirror'):
@@ -2450,7 +2445,7 @@ class Rift(window.Window):
 
         A haptics buffer is object which stores vibration amplitude samples for
         playback through the Touch controllers. To play a haptics buffer, pass
-        it to :py:meth:`submitHapticsBuffer`.
+        it to :py:method:`submitHapticsBuffer`.
 
         Parameters
         ----------
@@ -2543,7 +2538,7 @@ class Rift(window.Window):
         bounding box with dimensions defined by `extents`. Bounding boxes are
         primarily used for visibility testing and culling by `PsychXR`. The
         dimensions of the bounding box can be specified explicitly, or fitted
-        to meshes by passing vertices to the
+        to meshes by passing verticies to the
         :py:meth:`~psychxr.libovr.LibOVRBounds.fit` method after initialization.
 
         This function exposes the :py:class:`~psychxr.libovr.LibOVRBounds` class
@@ -2634,8 +2629,7 @@ class Rift(window.Window):
         if self._perfStats.frameStatsCount > 0:
             recentStat = self._perfStats.frameStats[0]  # get the most recent
             # check for dropped frames since last call
-            if self.warnAppFrameDropped and \
-                    reportNDroppedFrames > self._lastAppDroppedFrameCount:
+            if self.warnAppFrameDropped:
                 appDroppedFrameCount = recentStat.appDroppedFrameCount
                 if appDroppedFrameCount > self._lastAppDroppedFrameCount:
                     logging.warn(
@@ -2644,17 +2638,12 @@ class Rift(window.Window):
 
                 self._lastAppDroppedFrameCount = appDroppedFrameCount
 
-                if reportNDroppedFrames == self._lastAppDroppedFrameCount:
-                    logging.warn(
-                        "Maximum number of dropped frames detected. I'll stop "
-                        "warning you about them.")
 
-
-# def _logCallback(level, msg):
-#     """Callback function for log messages generated by LibOVR."""
-#     if level == libovr.LOG_LEVEL_INFO:
-#         logging.info(msg)
-#     elif level == libovr.LOG_LEVEL_DEBUG:
-#         logging.debug(msg)
-#     elif level == libovr.LOG_LEVEL_ERROR:
-#         logging.error(msg)
+def _logCallback(level, msg):
+    """Callback function for log messages generated by LibOVR."""
+    if level == libovr.LOG_LEVEL_INFO:
+        logging.info(msg)
+    elif level == libovr.LOG_LEVEL_DEBUG:
+        logging.debug(msg)
+    elif level == libovr.LOG_LEVEL_ERROR:
+        logging.error(msg)

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from builtins import str
+from builtins import object
+from past.builtins import basestring
 from psychopy.visual import Window, ShapeStim
 from psychopy import event, core, monitors
 from psychopy.constants import NOT_STARTED
@@ -14,19 +17,21 @@ except Exception:
 import pytest
 import copy
 import threading
+import os
 import numpy as np
-from psychopy.tests import skip_under_vm
 
 """test with both pyglet and pygame:
     cd psychopy/psychopy/
     py.test -k event --cov-report term-missing --cov event.py
 """
 
+travis = bool(str(os.environ.get('TRAVIS')).lower() == 'true')
+
 
 class DelayedFakeKeys(threading.Thread):
     def __init__(self, keys, modifiers=0, delay=.01):
         threading.Thread.__init__(self, None, 'fake key', None)
-        if isinstance(keys, str):
+        if isinstance(keys, basestring):
             self.keys = [keys]
         else:
             self.keys = keys
@@ -42,7 +47,7 @@ class DelayedFakeKeys(threading.Thread):
 class DelayedAddFakeKeysToBuffer(threading.Thread):
     def __init__(self, keys, modifiers=0, delay=.01):
         threading.Thread.__init__(self, None, 'fake key', None)
-        if isinstance(keys, str):
+        if isinstance(keys, basestring):
             self.keys = [keys]
         else:
             self.keys = keys
@@ -54,7 +59,7 @@ class DelayedAddFakeKeysToBuffer(threading.Thread):
         fake_events = [(key, self.modifiers, -1) for key in self.keys]
         event._keyBuffer.extend(fake_events)
 
-class _baseTest():
+class _baseTest(object):
     #this class allows others to be created that inherit all the tests for
     #a different window config
     @classmethod
@@ -95,7 +100,6 @@ class _baseTest():
         event._onPygletMouseRelease(0, 0, LEFT | MIDDLE | RIGHT, None, emulated=True)
         assert not any(event.mouseButtons)
 
-    @skip_under_vm
     def test_mouse_clock(self):
         x, y = 0, 0
         scroll_x, scroll_y = 1, 1
@@ -144,8 +148,9 @@ class _baseTest():
         event.clearEvents('joystick')
         assert event._keyBuffer
 
-    @skip_under_vm
     def test_keys(self):
+        if travis:
+            pytest.skip()  # failing on travis-ci
         if self.win.winType == 'pygame':
             pytest.skip()
         event.clearEvents()
@@ -191,14 +196,12 @@ class _baseTest():
             assert result[0][0] == k
             assert result[0][1] - delay < .01  # should be ~0 except for execution time
 
-    @skip_under_vm
     def test_waitKeys_clearEvents_True(self):
         key = 'x'
         DelayedAddFakeKeysToBuffer(key).start()
         key_events = event.waitKeys(clearEvents=True)
         assert key_events == [key]
 
-    @skip_under_vm
     def test_waitKeys_clearEvents_False(self):
         keys = ['x', 'y', 'z']
         [event._onPygletKey(symbol=key, modifiers=0, emulated=True)
@@ -209,7 +212,6 @@ class _baseTest():
         assert 'y' in key_events
         assert 'z' in key_events
 
-    @skip_under_vm
     def test_waitKeys_keyList_clearEvents_True(self):
         keys = ['x', 'y', 'z']
         DelayedAddFakeKeysToBuffer(keys).start()
@@ -223,8 +225,10 @@ class _baseTest():
     def test_xydist(self):
         assert event.xydist([0,0], [1,1]) == np.sqrt(2)
 
-    @skip_under_vm
     def test_mouseMoved(self):
+        if travis:
+            pytest.skip()  # failing on travis-ci
+
         m = event.Mouse()
         m.prevPos = [0, 0]
         m.lastPos = [0, 1]
@@ -263,7 +267,7 @@ class _baseTest():
         m = event.Mouse(self.win, newPos=(0,0))
         s = ShapeStim(self.win, vertices=[[10,10],[10,-10],[-10,-10],[-10,10]], autoLog=False)
         if not s.contains(m.getPos()):
-            pytest.skip()  # or can't test
+            pytest.skip()  # or cant test
 
         event.mouseButtons = [1, 1, 1]
         assert m.isPressedIn(s)
@@ -287,7 +291,7 @@ class TestPygletNorm(_baseTest):
     @classmethod
     def setup_class(self):
         mon = monitors.Monitor('testMonitor')
-        mon.setDistance(10.0) #exaggerate the effect of flatness by setting the monitor close
+        mon.setDistance(10.0) #exagerate the effect of flatness by setting the monitor close
         mon.setWidth(40.0)
         mon.setSizePix([1024,768])
         self.win = Window([128,128], monitor=mon, winType='pyglet', pos=[50,50], autoLog=False)

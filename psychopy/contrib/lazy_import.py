@@ -44,8 +44,10 @@ true for classes or functions (when used as a factory, or you want
 to inherit from them).
 """
 
+from __future__ import absolute_import, print_function
+from builtins import object
 
-class ScopeReplacer():
+class ScopeReplacer(object):
     """A lazy object that will replace itself in the appropriate scope.
 
     This object sits, ready to create the real object the first time it is
@@ -85,13 +87,13 @@ class ScopeReplacer():
             scope = object.__getattribute__(self, '_scope')
             obj = factory(self, scope, name)
             if obj is self:
-                raise ValueError(name, msg="Object tried"
+                raise errors.IllegalUseOfScopeReplacer(name, msg="Object tried"
                     " to replace itself, check it's not using its own scope.")
 
             # Check if another thread has jumped in while obj was generated.
             real_obj = object.__getattribute__(self, '_real_obj')
             if real_obj is None:
-                # Still no preexisting obj, so go ahead and assign to scope and
+                # Still no prexisting obj, so go ahead and assign to scope and
                 # return. There is still a small window here where races will
                 # not be detected, but safest to avoid additional locking.
                 object.__setattr__(self, '_real_obj', obj)
@@ -100,7 +102,7 @@ class ScopeReplacer():
 
         # Raise if proxying is disabled as obj has already been generated.
         if not ScopeReplacer._should_proxy:
-            raise ValueError(
+            raise errors.IllegalUseOfScopeReplacer(
                 name, msg="Object already replaced, did you assign it"
                           " to another variable?")
         return real_obj
@@ -217,7 +219,7 @@ class ImportReplacer(ScopeReplacer):
         return module
 
 
-class ImportProcessor():
+class ImportProcessor(object):
     """Convert text that users input into lazy import requests"""
 
     # TODO: jam 20060912 This class is probably not strict enough about
@@ -258,7 +260,7 @@ class ImportProcessor():
             elif line.startswith('from '):
                 self._convert_from_str(line)
             else:
-                raise ValueError(line,
+                raise errors.InvalidImportLine(line,
                     "doesn't start with 'import ' or 'from '")
 
     def _convert_import_str(self, import_str):
@@ -284,7 +286,7 @@ class ImportProcessor():
                 name = as_hunks[1].strip()
                 module_path = as_hunks[0].strip().split('.')
                 if name in self.imports:
-                    raise ValueError(name)
+                    raise errors.ImportNameCollision(name)
                 # No children available in 'import foo as bar'
                 self.imports[name] = (module_path, None, {})
             else:
@@ -336,7 +338,7 @@ class ImportProcessor():
             else:
                 name = module = path
             if name in self.imports:
-                raise ValueError(name)
+                raise errors.ImportNameCollision(name)
             self.imports[name] = (from_module_path, module, {})
 
     def _canonicalize_import_text(self, text):
@@ -369,7 +371,7 @@ class ImportProcessor():
                 else:
                     out.append(line.replace('(', '').replace(')', ''))
         if cur is not None:
-            raise ValueError(cur, 'Unmatched parenthesis')
+            raise errors.InvalidImportLine(cur, 'Unmatched parenthesis')
         return out
 
 
@@ -400,3 +402,12 @@ def lazy_import(scope, text, lazy_import_class=None):
     # This is just a helper around ImportProcessor.lazy_import
     proc = ImportProcessor(lazy_import_class=lazy_import_class)
     return proc.lazy_import(scope, text)
+
+
+# The only module that this module depends on is 'bzrlib.errors'. But it
+# can actually be imported lazily, since we only need it if there is a
+# problem.
+
+lazy_import(globals(), """
+from bzrlib import errors
+""")

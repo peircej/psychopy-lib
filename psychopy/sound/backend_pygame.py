@@ -1,90 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from pathlib import Path
+
+from __future__ import absolute_import, division, print_function
 
 import numpy
 from os import path
-from psychopy import logging, prefs
+from psychopy import logging,exceptions
 from psychopy.constants import (STARTED, PLAYING, PAUSED, FINISHED, STOPPED,
                                 NOT_STARTED, FOREVER)
-from psychopy.tools import filetools as ft
 from ._base import _SoundBase
-from .exceptions import DependencyError
 
 try:
     import pygame
     from pygame import mixer, sndarray
 except ImportError as err:
-    # convert this import error to our own, pygame probably not installed
-    raise DependencyError(repr(err))
-
-
-def getDevices(kind=None):
-    """Get audio playback and recording devices via the backend's audio API.
-
-    Queries the system for available audio playback and recording devices,
-    returning names and capabilities.
-
-    Parameters
-    ----------
-    kind : str or None
-        Audio device types to query from the system. Values can be 'input' or
-        'output' for recording and playback, respectively. If `None`, only
-        playback devices are returned.
-
-    Returns
-    -------
-    dict
-        A `dict` of `dict` of installed playback/capture devices and their
-        properties. Keys are device names and values are properties stored in a
-        `dict`. Properties are guaranteed to contain the following keys and
-        values:
-
-            * `name` - Human readable name of the device i.e. "High Definition
-              Audio". This is the same as the value's key used to access the
-              property.
-            * `id` - Enumerated device ID.
-
-    """
-    # Just some values to keep the prefs dialog from crashing
-    if kind.startswith('out') or None:
-        return {'Default Playback Device':
-                    {'name': 'Default Playback Device', 'id': 0}}
-    elif kind.startswith('in'):
-        return {'Default Recording Device':
-                    {'name': 'Default Recording Device', 'id': 0}}
-    else:
-        raise ValueError("Invalid value for argument `kind`.")
-
-    # # This code here will be usable when we update to Pygame 2.x, for now we
-    # # just return some values indicating the default audio device is being
-    # # used.
-    #
-    # # 0 = playback, 1 = recording
-    # if kind.startswith('out') or None:
-    #     devType = 0
-    # elif kind.startswith('in'):
-    #     devType = 1
-    # else:
-    #     raise ValueError('Invalid value for `kind`.')
-    #
-    # # query the number of devices of `kind` from SDL
-    # devCount = sdl2.get_num_audio_devices(devType)
-    #
-    # # DEBUG: make sure we have an integer
-    # assert isinstance(devCount, (int,))
-    #
-    # # build the dictionary of audio devices
-    # devs = dict()
-    # for devIdx in range(devCount):
-    #     # create new entry in output dict
-    #     devName = str(sdl2.get_audio_device_name(devIdx, 0), encoding="utf-8")
-    #     devs[devName] = dict()
-    #     devs['name'] = devName  # redundant?
-    #     devs['id'] = devIdx
-    #
-    #     # query additional information from SDL2 about device
-
+    # convert this import error to our own, pyo probably not installed
+    raise exceptions.DependencyError(repr(err))
 
 def init(rate=22050, bits=16, stereo=True, buffer=1024):
     """If you need a specific format for sounds you need to run this init
@@ -123,37 +54,38 @@ def init(rate=22050, bits=16, stereo=True, buffer=1024):
 class SoundPygame(_SoundBase):
     """Create a sound object, from one of many ways.
 
-    Parameters
-    ----------
-    value: int, float, str or ndarray
-        * If it's a number between 37 and 32767 then a tone will be generated at
-          that frequency in Hz.
-        * It could be a string for a note ('A', 'Bfl', 'B', 'C', 'Csh', ...).
-          Then you may want to specify which octave as well.
-        * Or a string could represent a filename in the current location, or
-          mediaLocation, or a full path combo.
-        * Or by giving an Nx2 numpy array of floats (-1:1) you can specify the
-          sound yourself as a waveform.
-    secs: float
-        Duration in seconds (only relevant if the value is a note name or a
-        frequency value.)
-    octave:
-        Middle octave of a piano is 4. Most computers won't output sounds in the
-        bottom octave (1) and the top octave (8) is generally painful. Is only
-        relevant if the value is a note name.
-    sampleRate: int
-        Audio sample rate, default is 44100 Hz.
-    bits:  int
-        Bit depth. Pygame uses the same bit depth for all sounds once
-        initialised. Default is 16.
+    :parameters:
+        value: can be a number, string or an array:
+            * If it's a number between 37 and 32767 then a tone will be
+              generated at that frequency in Hz.
+            * It could be a string for a note ('A', 'Bfl', 'B', 'C',
+              'Csh', ...). Then you may want to specify which octave as well
+            * Or a string could represent a filename in the current
+              location, or mediaLocation, or a full path combo
+            * Or by giving an Nx2 numpy array of floats (-1:1) you
+              can specify the sound yourself as a waveform
 
+        secs: duration (only relevant if the value is a note name or a
+            frequency value)
+
+        octave: is only relevant if the value is a note name.
+            Middle octave of a piano is 4. Most computers won't
+            output sounds in the bottom octave (1) and the top
+            octave (8) is generally painful
+
+        sampleRate(=44100): If a sound has already been created or if the
+
+        bits(=16):  Pygame uses the same bit depth for all sounds once
+            initialised
     """
+
     def __init__(self, value="C", secs=0.5, octave=4, sampleRate=44100,
                  bits=16, name='', autoLog=True, loops=0, stereo=True,
-                 hamming=False, speaker=None):
+                 hamming=False):
+        """
+        """
         self.name = name  # only needed for autoLogging
         self.autoLog = autoLog
-        self.speaker = speaker
 
         if stereo == True:
             stereoChans = 2
@@ -172,8 +104,6 @@ class SoundPygame(_SoundBase):
             init()
             inits = mixer.get_init()
         self.sampleRate, self.format, self.isStereo = inits
-        self.startTime = 0
-        self.stopTime = secs
 
         if hamming:
             logging.warning("Hamming was requested using the 'pygame' sound "
@@ -188,56 +118,44 @@ class SoundPygame(_SoundBase):
         self.requestedLoops = self.loops = int(loops)
         self.setSound(value=value, secs=secs, octave=octave, hamming=False)
 
-        self._isPlaying = False
-
-    @property
-    def isPlaying(self):
-        """`True` if the audio playback is ongoing."""
-        return self._isPlaying
-
     def play(self, fromStart=True, log=True, loops=None, when=None):
         """Starts playing the sound on an available channel.
 
-        Parameters
-        ----------
-        fromStart : bool
-            Not yet implemented.
-        log : bool
-            Whether to log the playback event.
-        loops : int
-            How many times to repeat the sound after it plays once. If
-            `loops` == -1, the sound will repeat indefinitely until
-            stopped.
-        when: not used but included for compatibility purposes
+        :Parameters:
 
-        Notes
-        -----
-        If no sound channels are available, it will not play and return `None`.
-        This runs off a separate thread i.e. your code won't wait for the sound
-        to finish before continuing. You need to use a `psychopy.core.wait()`
-        command if you want things to pause. If you call `play()` whiles
-        something is already playing the sounds will be played over each other.
+            fromStart : bool
+                Not yet implemented.
+            log : bool
+                Whether or not to log the playback event.
+            loops : int
+                How many times to repeat the sound after it plays once. If
+                `loops` == -1, the sound will repeat indefinitely until
+                stopped.
+            when: not used but included for compatibility purposes
+
+        :Notes:
+
+            If no sound channels are available, it will not play and return
+            None. This runs off a separate thread i.e. your code won't wait
+            for the sound to finish before continuing. You need to use a
+            psychopy.core.wait() command if you want things to pause.
+            If you call play() whiles something is already playing the sounds
+            will be played over each other.
 
         """
-        if self.isPlaying:
-            return
-
         if loops is None:
             loops = self.loops
         self._snd.play(loops=loops)
-        self._isPlaying = True
+        self.status = STARTED
         if log and self.autoLog:
-            logging.exp("Sound %s started" % self.name, obj=self)
+            logging.exp("Sound %s started" % (self.name), obj=self)
         return self
 
     def stop(self, log=True):
         """Stops the sound immediately
         """
-        if not self.isPlaying:
-            return
-
         self._snd.stop()
-        self._isPlaying = False
+        self.status = STOPPED
         if log and self.autoLog:
             logging.exp("Sound %s stopped" % (self.name), obj=self)
 
@@ -250,7 +168,7 @@ class SoundPygame(_SoundBase):
         self.status = STOPPED
 
     def getDuration(self):
-        """Gets the duration of the current sound in secs
+        """Get's the duration of the current sound in secs
         """
         return self._snd.get_length()
 
@@ -269,9 +187,6 @@ class SoundPygame(_SoundBase):
         return self.getVolume()
 
     def _setSndFromFile(self, fileName):
-        # alias default names (so it always points to default.png)
-        if fileName in ft.defaultStim:
-            fileName = Path(prefs.paths['assets']) / ft.defaultStim[fileName]
         # load the file
         if not path.isfile(fileName):
             msg = "Sound file %s could not be found." % fileName
@@ -287,11 +202,9 @@ class SoundPygame(_SoundBase):
             logging.error(msg % fileName)
             raise ValueError(msg % fileName)
 
-    def _setSndFromClip(self, clip):
-        self.clip = clip
-        thisArray = self.clip.samples
-
+    def _setSndFromArray(self, thisArray):
         # get a mixer.Sound object from an array of floats (-1:1)
+
         # make stereo if mono
         if (self.isStereo == 2 and
                 (len(thisArray.shape) == 1 or

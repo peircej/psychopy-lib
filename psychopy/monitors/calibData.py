@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
 """Data useful for calibrations (Smith-Pokorny cone fundamentals etc...)
 """
+from __future__ import absolute_import, print_function
+
 import numpy
 
 # 380 to 780 inclusive with 5nm steps

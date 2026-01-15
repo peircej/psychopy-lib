@@ -16,7 +16,10 @@ Tests the psychopy.core.getTime Function:
 Jan 2014, Jeremy Gray:
 - Coverage of .quit, .shellCall, and increased coverage of StaticPeriod()
 """
+from __future__ import print_function
+from __future__ import division
 
+from builtins import range
 import time
 import sys
 import numpy as np
@@ -25,12 +28,11 @@ import pytest
 
 import psychopy
 import psychopy.logging as logging
-from psychopy.tests.utils import RUNNING_IN_VM
 from psychopy.visual import Window
 from psychopy.core import (getTime, MonotonicClock, Clock, CountdownTimer, wait,
                            StaticPeriod, shellCall)
 from psychopy.clock import monotonicClock
-from psychopy.tools import systemtools
+from psychopy.constants import PY3
 
 
 def test_EmptyFunction():
@@ -49,8 +51,12 @@ def printf(*args):
 py_time = None
 py_timer_name = None
 
-py_time=time.time
-py_timer_name = 'time.time'
+if sys.platform == 'win32':
+    py_time=time.clock
+    py_timer_name = 'time.clock'
+else:
+    py_time=time.time
+    py_timer_name = 'time.time'
 
 
 def printExceptionDetails():
@@ -308,7 +314,7 @@ def test_Wait(duration=1.55):
         # IMO, during the hog period, which should only need to be only 1 - 2 msec
         # , not the 200 msec default now, nothing should be done but tight looping
         # waiting for the wait() to expire. This is what I do in ioHub and on this same
-        # PC I get actual vs. requested duration delta's of < 100 usec consistently.
+        # PC I get actual vs. requested duration delta's of < 100 usec consitently.
         #
         # I have not changed the wait in psychopy until feedback is given, as I
         # may be missing a reason why the current wait() implementation is required.
@@ -347,10 +353,6 @@ def test_LoggingDefaultClock():
 
 @pytest.mark.staticperiod
 def test_StaticPeriod():
-    # this test is speed sensitive, so skip under VM
-    if RUNNING_IN_VM:
-        pytest.skip()
-
     static = StaticPeriod()
     static.start(0.1)
     wait(0.05)
@@ -380,13 +382,9 @@ def test_StaticPeriod():
     timer.reset(period_duration )
     static.complete()
 
-    if systemtools.isVM_CI():
-        tolerance = 0.01  # without a proper screen timing might not eb sub-ms
-    else:
-        tolerance = 0.001
     assert np.allclose(timer.getTime(),
                        1.0/refresh_rate,
-                       atol=tolerance)
+                       atol=0.001)
     win.close()
 
 
@@ -398,7 +396,7 @@ def test_quit():
 
 
 @pytest.mark.shellCall
-class Test_shellCall():
+class Test_shellCall(object):
     def setup_class(self):
         if sys.platform == 'win32':
             self.cmd = 'findstr'

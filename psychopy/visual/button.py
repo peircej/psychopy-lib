@@ -4,191 +4,127 @@
 """Creates a button"""
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
-import numpy as np
 
-from psychopy import event, core, layout
-from psychopy.tools.attributetools import attributeSetter
-from psychopy.visual import TextBox2
-from psychopy.visual.shape import ShapeStim
-from psychopy.constants import (NOT_STARTED, STARTED, PLAYING, PAUSED, STOPPED, FINISHED, PRESSED, RELEASED, FOREVER)
+from __future__ import absolute_import, print_function
 
-__author__ = 'Anthony Haffey & Todd Parsons'
+from psychopy import event
+from psychopy.visual.shape import BaseShapeStim
+from psychopy.visual.text import TextStim
 
+__author__ = 'Anthony Haffey'
 
-class ButtonStim(TextBox2):
-    """
-    A class for putting a button into your experiment. A button is essentially a TextBox with a Mouse component
-    contained within it, making it easy to check whether it has been clicked on.
+class ButtonStim(BaseShapeStim):
+    """A class for putting a button into your experiment.
+
     """
 
-    def __init__(self, win, text, font='Arvo',
-                 pos=(0, 0), size=None, ori=0, padding=None, anchor='center', units=None,
-                 color='white', fillColor='darkgrey', borderColor=None, borderWidth=0, colorSpace='rgb', opacity=None,
-                 letterHeight=None, bold=True, italic=False,
-                 name="", depth=0, autoLog=None,
+    def __init__(self,
+                 win,
+                 borderThickness=.003,
+                 labelSize=0.03,
+                 pos=(0, 0),
+                 labelText="text for button",
+                 textColor='blue',
+                 borderColor='blue',
+                 buttonColor='white',
+                 buttonEnabled=False,
                  ):
-        # Initialise TextBox
-        TextBox2.__init__(self, win, text, font, name=name,
-                                 pos=pos, size=size, ori=ori, padding=padding, anchor=anchor, units=units,
-                                 color=color, fillColor=fillColor, borderColor=borderColor, borderWidth=borderWidth, colorSpace=colorSpace, opacity=opacity,
-                                 letterHeight=letterHeight, bold=bold, italic=italic,
-                                 alignment='center', editable=False, depth=depth, autoLog=None)
-        self.listener = event.Mouse(win=win)
-        self.buttonClock = core.Clock()
-        # Attribute to save whether button was previously clicked
-        self.wasClicked = False
-        # Arrays to store times of clicks on and off
-        self.timesOn = []
-        self.timesOff = []
 
-    @property
-    def numClicks(self):
-        """How many times has this button been clicked on?"""
-        return len(self.timesOn)
+        # local variables
+        super(ButtonStim, self).__init__(win)
+        button_width = len(labelText) * .025
+        button_x_inner_margin = .02
+        button_x_outer_margin = button_x_inner_margin + borderThickness
+        button_y_inner_margin = labelSize
+        button_y_outer_margin = labelSize + borderThickness
+        button_x_range = (0 - button_width / 2 + pos[0], 0 + button_width / 2 + pos[0])
 
-    @property
-    def isClicked(self):
-        """Is this button currently being clicked on?"""
-        # Update vertices
-        if self._needVertexUpdate:
-            self._updateVertices()
-        # Return True if pressed in
-        return bool(self.listener.isPressedIn(self))
+        self.win = win
+        self.borderThickness = borderThickness
+        self.labelSize = labelSize
+        self.pos = pos
+        self.labelText = labelText
+        self.textColor = textColor
+        self.borderColor = borderColor
+        self.buttonColor = buttonColor
+        self.buttonEnabled = buttonEnabled
 
-    def reset(self):
-        """
-        Clear previously stored times on / off and check current click state.
+        self._dragging = False
+        self.mouse = event.Mouse()
+        self.buttonSelected = False
+        self.buttonItems = []
 
-        In Builder, this is called at the start of each routine.
-        """
-        # Update wasClicked (so continued clicks at routine start are considered)
-        self.wasClicked = self.isClicked
-        # Clear on/off times
-        self.timesOn = []
-        self.timesOff = []
+        self.buttonBorder = BaseShapeStim(self.win, fillColor=self.borderColor, vertices=(
+            (button_x_range[0] - button_x_outer_margin, -button_y_outer_margin + self.pos[1]),
+            (button_x_range[0] - button_x_outer_margin, button_y_outer_margin + self.pos[1]),
+            (button_x_range[1] + button_x_outer_margin, button_y_outer_margin + self.pos[1]),
+            (button_x_range[1] + button_x_outer_margin, -button_y_outer_margin + self.pos[1])))
+        self.buttonInner = BaseShapeStim(self.win, fillColor=self.buttonColor, vertices=(
+            (button_x_range[0] - button_x_inner_margin, -button_y_inner_margin + self.pos[1]),
+            (button_x_range[0] - button_x_inner_margin, button_y_inner_margin + self.pos[1]),
+            (button_x_range[1] + button_x_inner_margin, button_y_inner_margin + self.pos[1]),
+            (button_x_range[1] + button_x_inner_margin, -button_y_inner_margin + self.pos[1])))
+        self.buttonInnerText = TextStim(self.win, text=self.labelText, color=self.textColor, pos=self.pos,
+                                               height=self.labelSize)
+        self.buttonItems.append(self.buttonBorder)
+        self.buttonItems.append(self.buttonInner)
+        self.buttonItems.append(self.buttonInnerText)
 
+    def draw(self):
+        self.getMouseResponses()
+        for item in self.buttonItems:
+            item.draw()
 
-class CheckBoxStim(ShapeStim):
-    def __init__(self, win, name="", startVal=False,
-                 shape="circle",
-                 pos=(0, 0), size=(0.1, 0.1), padding=(0.02, 0.02), anchor='center', units=None,
-                 color='white', fillColor=None,
-                 borderColor="white", borderWidth=4,
-                 colorSpace='rgb', opacity=None,
-                 autoLog=None):
-        ShapeStim.__init__(self, win, name=name,
-                                  vertices=shape,
-                                  pos=pos, size=size, anchor=anchor, units=units,
-                                  fillColor=fillColor,
-                                  lineColor=borderColor, lineWidth=borderWidth,
-                                  colorSpace=colorSpace, opacity=opacity,
-                                  autoLog=autoLog)
-
-        # Make marker
-        self.marker = ShapeStim(win, name=name + "Marker",
-                                       vertices=shape, anchor="center", units=units,
-                                       fillColor=color, lineColor=None,
-                                       colorSpace=colorSpace, autoLog=False)
-        # Set size and padding to layout marker
-        self.padding = padding
-        self.size = size
-        # Set value
-        self.checked = startVal
-
-    @attributeSetter
-    def checked(self, value):
-        # Store as bool
-        value = bool(value)
-        self.__dict__['checked'] = value
-        # Show/hide marker according to check value
-        if value:
-            self.marker.opacity = self._borderColor.alpha
+    def buttonSwitch(self, switch):
+        if switch:
+            self.buttonBorder.color = self.buttonColor
+            self.buttonInner.color = self.borderColor
+            self.buttonInnerText.color = self.buttonColor
         else:
-            self.marker.opacity = 0
+            self.buttonBorder.color = self.borderColor
+            self.buttonInner.color = self.buttonColor
+            self.buttonInnerText.color = self.borderColor
 
-    def setChecked(self, value):
-        self.checked = value
+    def buttonContains(self, mouse):
+        return self.buttonBorder.contains(mouse)
 
-    @attributeSetter
-    def value(self, value):
-        self.checked = value
+    def buttonClicked(self, mouse):
+        self.buttonSelected = bool(self.buttonContains(mouse)
+                                   and mouse.getPressed()[0])
+        return self.buttonSelected
 
-    def setValue(self, value):
-        self.checked = value
+    def buttonGuard(self, condition):
+        if not self.buttonEnabled:
+            self.buttonBorder.color = 'dimgrey'
+            self.buttonInner.color = 'darkgrey'
+            self.buttonInnerText.color = 'dimgrey'
+        else:
+            self.buttonBorder.color = self.buttonColor
+            self.buttonInner.color = self.borderColor
+            self.buttonInnerText.color = self.buttonColor
 
-    def toggle(self):
-        self.checked = not self.checked
+    def getMouseResponses(self):
+        self.buttonGuard(self.buttonEnabled)
+        if not self.buttonEnabled:
+            return
 
-    @attributeSetter
-    def padding(self, value):
-        self.__dict__['padding'] = value
-        # None = default = 1/5 of size
-        if value is None:
-            value = self._size / 5
-        # Create unit agnostic object
-        self._padding = layout.Size(value, self.units, self.win) * 2
+        if not self.buttonClicked(self.mouse):  # hovering
+            self.buttonSwitch(self.buttonContains(self.mouse))
 
-    @property
-    def pos(self):
-        return ShapeStim.pos.fget(self)
+        if self.buttonClicked(self.mouse):
+            self._dragging = True
+            # Update current but don't set Rating (mouse is still down)
+            # Dragging has to start inside a "valid" area (i.e., on the
+            # slider), but may continue even if the mouse moves away from
+            # the slider, as long as the mouse button is not released.
+        else:  # mouse is up - check if it *just* came up
+            if self._dragging:
+                if self.buttonContains(self.mouse):
+                    self.buttonSelected = True
+                self._dragging = False
+            else:
+                # is up and was already up - move along
+                return None
 
-    @pos.setter
-    def pos(self, value):
-        # Do base setting
-        ShapeStim.pos.fset(self, value)
-        if hasattr(self, "marker"):
-            # Adjust marker pos so it is centered within self
-            corners = getattr(self._vertices, self.units)
-            midpoint = np.mean(corners, axis=0)
-            # Set marker pos
-            self.marker.pos = midpoint
-
-    @property
-    def size(self):
-        return ShapeStim.size.fget(self)
-
-    @size.setter
-    def size(self, value):
-        # Do base setting
-        ShapeStim.size.fset(self, value)
-        if hasattr(self, "marker"):
-            # Adjust according to padding
-            self.marker.size = self._size - self._padding
-            # Set pos to refresh marker pos
-            self.pos = self.pos
-
-    @property
-    def units(self):
-        return ShapeStim.units.fget(self)
-
-    @units.setter
-    def units(self, value):
-        ShapeStim.units.fset(self, value)
-        if hasattr(self, "marker"):
-            self.marker.units = value
-
-    @property
-    def foreColor(self):
-        # Return marker color
-        return self.marker.fillColor
-
-    @foreColor.setter
-    def foreColor(self, value):
-        # Set marker color
-        self.marker.fillColor = value
-
-    @property
-    def color(self):
-        return self.foreColor
-
-    @color.setter
-    def color(self, value):
-        self.foreColor = value
-
-    def draw(self, win=None, keepMatrix=False):
-        # Draw self
-        ShapeStim.draw(self, win=win, keepMatrix=keepMatrix)
-        # Draw marker
-        self.marker.draw(win=win, keepMatrix=keepMatrix)

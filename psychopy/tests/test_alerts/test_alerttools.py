@@ -1,16 +1,15 @@
 import sys
-from psychopy.alerts import addAlertHandler, alerttools
+from psychopy.alerts import alerttools
 from psychopy.alerts._errorHandler import _BaseErrorHandler
 from psychopy.experiment import getAllComponents, Experiment
 
 
-class TestAlertTools():
+class TestAlertTools(object):
     """A class for testing the alerttools module"""
 
-    def setup_method(self):
+    def setup(self):
         # Set ErrorHandler
         self.error = _BaseErrorHandler()
-        addAlertHandler(self.error)
 
         # Create experiment, trial, flow and test components
         self.exp = Experiment()
@@ -79,7 +78,7 @@ class TestAlertTools():
     def test_disabled(self):
         self.polygonComp.params['disabled'].val = True
         alerttools.testDisabled(self.polygonComp)
-        assert (f"The component {self.polygonComp.params['name']} is currently disabled" in self.error.alerts[0].msg)
+        assert ('Your component is currently disabled' in self.error.alerts[0].msg)
 
     def test_achievable_visual_stim_onset(self):
         self.polygonComp.params['startVal'].val = .001
@@ -102,7 +101,7 @@ class TestAlertTools():
         self.polygonComp.params['startVal'].val = .5
         self.polygonComp.params['startType'].val = "duration (frames)"
         self.exp.integrityCheck()
-        assert ("Your stimulus start type \'duration (frames)\' must be expressed as a whole number" in self.error.alerts[0].msg)
+        assert ("Your stimulus start type 'duration (frames)' must be expressed as a whole number" in self.error.alerts[0].msg)
 
     def test_python_syntax(self):
         alerttools.checkPythonSyntax(self.codeComp, 'Begin Experiment')
@@ -128,5 +127,5 @@ def test_validDuration():
 
 if __name__ == "__main__":
     tester = TestAlertTools()
-    tester.setup_method()
+    tester.setup()
     tester.test_sizing_x_dimension()

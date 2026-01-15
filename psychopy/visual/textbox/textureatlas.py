@@ -10,6 +10,12 @@
 #
 # -----------------------------------------------------------------------------
 
+from __future__ import absolute_import, print_function
+
+
+from builtins import range
+from builtins import object
+import pyglet.gl as gl
 from pyglet.gl import (GLuint, glEnable, GL_TEXTURE_2D, glBindTexture, glTexParameteri,
                        GL_TEXTURE_WRAP_S, GL_CLAMP, GL_TEXTURE_WRAP_T, glTexImage2D,
                        GL_TEXTURE_MIN_FILTER, GL_LINEAR, GL_TEXTURE_MAG_FILTER, GL_ALPHA,
@@ -20,7 +26,7 @@ import numpy as np
 import sys
 
 
-class TextureAtlas:
+class TextureAtlas(object):
     '''
     Group multiple small data regions into a larger texture.
 

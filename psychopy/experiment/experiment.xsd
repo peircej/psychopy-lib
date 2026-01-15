@@ -15,33 +15,15 @@
      <xsd:restriction base="xsd:string">
        <xsd:enumeration value="bool"/>
        <xsd:enumeration value="code"/>
-       <xsd:enumeration value="color"/>
+       <xsd:enumeration value="extendedCode"/>
        <xsd:enumeration value="num"/>
        <xsd:enumeration value="str"/>
+       <xsd:enumeration value="extendedStr"/>
        <xsd:enumeration value="int"/>
        <xsd:enumeration value="list"/>
-       <xsd:enumeration value="dict"/>
-       <xsd:enumeration value="file"/>
-       <xsd:enumeration value="fileList"/>
-       <xsd:enumeration value="table"/>
-       <!-- legacy only -->
-       <xsd:enumeration value="extendedStr"/>
        <xsd:enumeration value="fixedList"/>
-       <xsd:enumeration value="extendedCode"/>
+       <xsd:enumeration value="fileList"/>
      </xsd:restriction>
-  </xsd:simpleType>
-
-  <xsd:simpleType name="InputType">
-    <xsd:restriction base="xsd:string">
-      <xsd:enumeration value="spin"/>
-      <xsd:enumeration value="choice"/>
-      <xsd:enumeration value="bool"/>
-      <xsd:enumeration value="file"/>
-      <xsd:enumeration value="fileList"/>
-      <xsd:enumeration value="table"/>
-      <xsd:enumeration value="color"/>
-      <xsd:enumeration value="dict"/>
-    </xsd:restriction>
   </xsd:simpleType>
 
   <xsd:simpleType name="Updates">
@@ -83,7 +65,6 @@
 
   <xsd:group name="ComponentGroup">
     <xsd:choice>
-      <xsd:element name="RoutineSettingsComponent" type="Component"/>
       <xsd:element name="ApertureComponent" type="Component"/>
       <xsd:element name="ButtonComponent" type="Component"/>
       <xsd:element name="cedrusButtonBoxComponent" type="Component"/>
@@ -95,12 +76,9 @@
       <xsd:element name="ioLabsButtonBoxComponent" type="Component"/>
       <xsd:element name="KeyboardComponent" type="Component"/>
       <xsd:element name="MicrophoneComponent" type="Component"/>
-      <xsd:element name="CameraComponent" type="Component"/>
       <xsd:element name="MouseComponent" type="Component"/>
       <xsd:element name="MovieComponent" type="Component"/>
       <xsd:element name="ParallelOutComponent" type="Component"/>
-      <xsd:element name="PanoramaComponent" type="Component"/>
-      <xsd:element name="SerialComponent" type="Component"/>
       <xsd:element name="QmixPumpComponent" type="Component"/>
       <xsd:element name="PolygonComponent" type="Component"/>
       <xsd:element name="RatingScaleComponent" type="Component"/>
@@ -111,18 +89,8 @@
       <xsd:element name="SliderComponent" type="Component"/>
       <xsd:element name="NoiseStimComponent" type="Component"/>
       <xsd:element name="EnvGratingComponent" type="Component"/>
-      <xsd:element name="VariableComponent" type="Component"/>
-      <xsd:element name="EyetrackerRecordComponent" type="Component"/>
-      <xsd:element name="RegionOfInterestComponent" type="Component"/>
     </xsd:choice>
   </xsd:group>
-
-  <xsd:complexType name="StandaloneRoutine">
-    <xsd:sequence>
-      <xsd:element name="Param" type="Param" minOccurs="0" maxOccurs="unbounded"/>
-    </xsd:sequence>
-    <xsd:attribute name="name" type="Name" use="required"/>
-  </xsd:complexType>
 
   <xsd:complexType name="Routine">
     <xsd:sequence>
@@ -131,17 +99,9 @@
     <xsd:attribute name="name" type="Name" use="required"/>
   </xsd:complexType>
 
-  <xsd:group name="RoutineGroup">
-    <xsd:choice>
-      <xsd:element name="Routine" type="Routine" minOccurs="0" maxOccurs="unbounded"/>
-      <xsd:element name="EyetrackerCalibrationRoutine" type="StandaloneRoutine" minOccurs="0" maxOccurs="unbounded"/>
-      <xsd:element name="EyetrackerValidationRoutine" type="StandaloneRoutine" minOccurs="0" maxOccurs="unbounded"/>
-    </xsd:choice>
-  </xsd:group>
-
   <xsd:complexType name="Routines">
     <xsd:sequence>
-      <xsd:group ref="RoutineGroup" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="Routine" type="Routine" minOccurs="0" maxOccurs="unbounded"/>
     </xsd:sequence>
   </xsd:complexType>
 
@@ -160,10 +120,6 @@
       important:
       Attribute "name" is not checked for existence in Routines.
     -->
-    <xsd:attribute name="name" type="Name" use="required"/>
-  </xsd:complexType>
-
-  <xsd:complexType name="FlowStandaloneRoutine">
     <xsd:attribute name="name" type="Name" use="required"/>
   </xsd:complexType>
 
@@ -188,14 +144,14 @@
       -->
       <xsd:element name="LoopInitiator" type="LoopInitiator"/>
       <xsd:element name="LoopTerminator" type="LoopTerminator"/>
-      <xsd:element name="EyetrackerCalibrationRoutine" type="FlowStandaloneRoutine" minOccurs="0" maxOccurs="unbounded"/>
-      <xsd:element name="EyetrackerValidationRoutine" type="FlowStandaloneRoutine" minOccurs="0" maxOccurs="unbounded"/>
     </xsd:choice>
   </xsd:group>
 
   <xsd:complexType name="Flow">
     <xsd:sequence>
-      <xsd:group ref="FlowGroup" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:choice>
+        <xsd:group ref="FlowGroup" minOccurs="0" maxOccurs="unbounded"/>
+      </xsd:choice>
     </xsd:sequence>
   </xsd:complexType>
 

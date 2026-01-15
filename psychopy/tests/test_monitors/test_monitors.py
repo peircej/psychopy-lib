@@ -3,12 +3,13 @@ import sys
 import glob
 import uuid
 from psychopy.monitors.calibTools import Monitor
+from psychopy.constants import PY3
 import numpy as np
 import pytest
 
 
 @pytest.mark.monitors
-class TestMonitorCalibration():
+class TestMonitorCalibration(object):
     def setup_class(self):
         self.monitor_name = str(uuid.uuid4().hex)  # random monitor name
         if sys.platform == 'win32':
@@ -34,12 +35,18 @@ class TestMonitorCalibration():
         location"""
         self.mon.save()
         assert os.path.isfile(self.fullname + '.json')
+        if not PY3:
+            #  additionally, we should have a .calib file in python 2
+            assert os.path.isfile(self.fullname + '.calib')
 
     def test_saveMon(self):
         """See if the monitor calibration file ended up in the correct
         location"""
         self.mon.save()
         assert os.path.isfile(self.fullname + '.json')
+        if not PY3:
+            #  additionally, we should have a .calib file in python 2
+            assert os.path.isfile(self.fullname + '.calib')
 
     def test_reload_monitor(self):
         """Reload the monitor and verify that all elements in each object

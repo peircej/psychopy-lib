@@ -7,18 +7,32 @@ Copyright (C) 2015 Jonathan Peirce
 Distributed under the terms of the MIT License.
 """
 
-from pathlib import Path
+from __future__ import absolute_import, print_function
+from builtins import super  # provides Py3-style super() using python-future
+
+from os import path
 from psychopy.experiment.components import BaseComponent, Param, _translate
 import numpy as np
+
+# the absolute path to the folder containing this path
+thisFolder = path.abspath(path.dirname(__file__))
+iconFile = path.join(thisFolder, 'variable.png')
+tooltip = _translate('Variable: create a new variable')
+
+# only use _localized values for label values, nothing functional:
+_localized = {'name': _translate('Name'),
+              'startExpValue': _translate('Experiment start value'),
+              'startRoutineValue': _translate('Routine start value'),
+              'startFrameValue': _translate('Frame start value'),
+              'saveStartExp': _translate('Save exp start value'),
+              'saveStartRoutine': _translate('Save routine start value'),
+              'saveFrameValue': _translate('Save frame value'),
+              'saveEndRoutine': _translate('Save routine end value'),
+              'saveEndExp': _translate('Save exp end value')}
 
 
 class VariableComponent(BaseComponent):
     """An class for creating variables in builder."""
-
-    categories = ['Custom']
-    targets = ['PsychoPy']
-    iconFile = Path(__file__).parent / 'variable.png'
-    tooltip = _translate('Variable: create a new variable')
 
     def __init__(self, exp, parentName,
                  name='var1', startExpValue = '',
@@ -29,59 +43,63 @@ class VariableComponent(BaseComponent):
 
         categories = ['Custom']
         self.type = 'Variable'
-        self.url = "https://www.psychopy.org/builder/components/variable.html"
-        self.order += ['startExpValue', 'saveStartExp', 'startRoutineValue',  # Basic tab
-                       'saveStartRoutine', 'startFrameValue', 'saveFrameValue', 'saveEndRoutine', 'saveEndExp',  # Data tab
-                       ]
+        self.url = "http://www.psychopy.org/builder/components/variable.html"
+        self.order += ['startExpValue', 'saveStartExp', 'startRoutineValue', 'saveStartRoutine', 'startFrameValue',
+                       'saveFrameValue', 'saveEndRoutine', 'saveEndExp']
 
         # set parameters
         hnt = _translate("The start value. A variable can be set to any value.")
         self.params['startExpValue'] = Param(
-            startExpValue, valType='code', inputType="single", allowedTypes=[], updates='constant', categ='Basic',
+            startExpValue, valType='code', allowedTypes=[], updates='constant',
             hint=hnt,
-            label=_translate("Experiment start value"))
-        hnt = _translate("Set the value for the beginning of each Routine.")
+            label=_localized['startExpValue'])
+        hnt = _translate("Set the value for the beginning of each routine.")
         self.params['startRoutineValue'] = Param(
-            startRoutineValue, valType='code', inputType="single", allowedTypes=[], updates='constant', categ='Basic',
+            startRoutineValue, valType='code', allowedTypes=[], updates='constant',
             hint=hnt,
-            label=_translate("Routine start value"))
+            label=_localized['startRoutineValue'])
         hnt = _translate("Set the value for the beginning of every screen refresh.")
         self.params['startFrameValue'] = Param(
-            startFrameValue, valType='code', inputType="single", allowedTypes=[], categ='Basic',
+            startFrameValue, valType='code', allowedTypes=[],
             hint=hnt,
-            label=_translate("Frame start value"))
+            label=_localized['startFrameValue'])
         # Save options
-        hnt = _translate("Save the experiment start value in data file.")
+        hnt = _translate('Save the experiment start value in data file.')
         self.params['saveStartExp'] = Param(
-            False, valType='bool', inputType="bool", categ='Data',
+            False, valType='bool',
             updates='constant',
             hint=hnt,
-            label=_translate("Save exp start value"))
-        hnt = _translate("Save the experiment end value in data file.")
+            label=_localized['saveStartExp'],
+            categ='Save')
+        hnt = _translate('Save the experiment end value in data file.')
         self.params['saveEndExp'] = Param(
-            False, valType='bool', inputType="bool", categ='Data',
+            False, valType='bool',
             updates='constant',
             hint=hnt,
-            label=_translate("Save exp end value"))
-        hnt = _translate("Save the Routine start value in data file.")
+            label=_localized['saveEndExp'],
+            categ='Save')
+        hnt = _translate('Save the routine start value in data file.')
         self.params['saveStartRoutine'] = Param(
-            False, valType='bool', inputType="bool", categ='Data',
+            False, valType='bool',
             updates='constant',
             hint=hnt,
-            label=_translate("Save Routine start value"))
-        hnt = _translate("Save the Routine end value in data file.")
+            label=_localized['saveStartRoutine'],
+            categ='Save')
+        hnt = _translate('Save the routine end value in data file.')
         self.params['saveEndRoutine'] = Param(
-            True, valType='bool', inputType="bool", categ='Data',
+            True, valType='bool',
             updates='constant',
             hint=hnt,
-            label=_translate("Save Routine end value"))
-        hnt = _translate("Save choice of frame value in data file.")
+            label=_localized['saveEndRoutine'],
+            categ='Save')
+        hnt = _translate('Save choice of frame value in data file.')
         self.params['saveFrameValue'] = Param(
-            'never', valType='str', inputType="choice", categ='Data',
+            'never', valType='str',
             allowedVals=['first', 'last', 'all', 'never'],
-            updates='constant', direct=False,
+            updates='constant',
             hint=hnt,
-            label=_translate("Save frame value"))
+            label=_localized['saveFrameValue'],
+            categ='Save')
 
     def writeInitCode(self, buff):
         """Write variable initialisation code."""
@@ -95,9 +113,9 @@ class VariableComponent(BaseComponent):
         buff.writeIndented(code % self.params)
     #
     def writeRoutineStartCode(self, buff):
-        """Write the code that will be called at the start of the Routine."""
+        """Write the code that will be called at the start of the routine."""
         if not self.params['startRoutineValue'] == '':
-            code = ("%(name)s = %(startRoutineValue)s  # Set Routine start values for %(name)s\n")
+            code = ("%(name)s = %(startRoutineValue)s  # Set routine start values for %(name)s\n")
             if self.params['saveStartRoutine'] == True:
                 code += ("thisExp.addData('%(name)s.routineStartVal', %(name)s)  # Save exp start value\n")
             buff.writeIndentedLines(code % self.params)
@@ -105,6 +123,7 @@ class VariableComponent(BaseComponent):
     def writeFrameCode(self, buff):
         """Write the code that will be called at the start of the frame."""
         if not self.params['startFrameValue'] == '':
+            basestring = (str, bytes)
             # Create dict for hold start and end types and converting them from types to variables
             timeTypeDict = {'time (s)': 't', 'frame N': 'frameN', 'condition': self.params['startVal'].val,
                             'duration (s)': 't','duration (frames)': 'frameN'}
@@ -120,7 +139,7 @@ class VariableComponent(BaseComponent):
             if self.params['startVal'].val or self.params['stopVal'].val:
                 if self.params['startType'].val == 'time (s)':
                     # if startVal is an empty string then set to be 0.0
-                    if (isinstance(self.params['startVal'].val, str) and
+                    if (isinstance(self.params['startVal'].val, basestring) and
                             not self.params['startVal'].val.strip()):
                         self.params['startVal'].val = '0.0'
 
@@ -155,12 +174,12 @@ class VariableComponent(BaseComponent):
             buff.writeIndentedLines(code)
 
     def writeRoutineEndCode(self, buff):
-        """Write the code that will be called at the end of the Routine."""
+        """Write the code that will be called at the end of the routine."""
         code = ''
         if self.params['saveStartExp'] == True and not self.params['startExpValue'] == '':
             code = ("thisExp.addData('%(name)s.expStartVal', %(startExpValue)s)  # Save exp start value\n")
         if self.params['saveEndRoutine'] == True and not self.params['startRoutineValue'] == '':
-            code += ("thisExp.addData('%(name)s.routineEndVal', %(name)s)  # Save end Routine value\n")
+            code += ("thisExp.addData('%(name)s.routineEndVal', %(name)s)  # Save end routine value\n")
         if not self.params['startFrameValue'] == '':
             if self.params['saveFrameValue'] == 'last':
                 code += ("thisExp.addData('%(name)s.frameEndVal', %(name)sContainer[-1])  # Save end frame value\n")

@@ -4,6 +4,7 @@
 
 # py.test -k emulator --cov-report term-missing --cov hardware/emulator.py tests/test_hardware
 
+from builtins import object
 import os, sys
 import pytest
 
@@ -12,7 +13,8 @@ from psychopy.hardware import emulator
 from psychopy.hardware.emulator import *
 
 # launchScan sound is not tested, nor included coverage
-from psychopy.tests import skip_under_vm
+
+travis = bool("{}".format(os.environ.get('TRAVIS')).lower() == 'true')
 
 BASE_MR_SETTINGS = {
     'TR': 0.5,    # duration (sec) per volume
@@ -21,10 +23,10 @@ BASE_MR_SETTINGS = {
     'skip': 1     # number of volumes lacking a sync pulse at start of scan (for T1 stabilization)
     }
 
-@pytest.mark.emulator
-class TestLaunchScan():
+pytest.mark.emulator
+class TestLaunchScan(object):
     '''A base class to test launchScan with different MR_settings'''
-    def setup_method(self):
+    def setup(self):
         self.win = visual.Window(fullscr=False, autoLog=False)
         self.globalClock = core.Clock()
         self.MR_settings = BASE_MR_SETTINGS.copy()
@@ -80,8 +82,9 @@ class TestLaunchScan():
         r.stop()
         core.wait(.1, 0)
 
-    @skip_under_vm
     def test_misc(self):
+        if travis:
+            pytest.skip()
         MR_settings = BASE_MR_SETTINGS.copy()
         MR_settings.update({'sync': 'equal'})
         vol = launchScan(self.win, MR_settings, globalClock=self.globalClock,

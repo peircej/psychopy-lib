@@ -1,16 +1,11 @@
 import sys
-from psychopy.alerts import _alerts, validateCatalogue
-
-
-def test_catalogue():
-    valid, missing = validateCatalogue(dev=False)
-    assert valid, f"Missing alerts: {missing}"
+from psychopy.alerts import _alerts
 
 
 class TestAlertsModule():
     """A class for testing the alerts module"""
 
-    def teardown_method(self):
+    def teardown(self):
         sys.stderr = sys.__stderr__
 
     def test_alert_catalog(self):

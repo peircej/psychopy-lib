@@ -1,3 +1,7 @@
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
 from psychopy import visual, event, info
 import pytest
 import numpy as np
@@ -36,7 +40,7 @@ def leakage(Cls, *args, **kwargs):
 
 @pytest.mark.needs_sound
 @pytest.mark.memory
-class TestMemorySound():
+class TestMemorySound(object):
     @classmethod
     def setup_class(self):
         global sound, pyo
@@ -70,7 +74,7 @@ class TestMemorySound():
 
 @pytest.mark.needs_sound
 @pytest.mark.memory
-class TestMemoryMovie():
+class TestMemoryMovie(object):
     @classmethod
     def setup_class(self):
         self.mov = os.path.join(utils.TESTS_DATA_PATH, 'testMovie.mp4')
@@ -92,7 +96,7 @@ class TestMemoryMovie():
 
 
 @pytest.mark.memory
-class TestMemory():
+class TestMemory(object):
     @classmethod
     def setup_class(self):
         self.imgs = [os.path.join(utils.TESTS_DATA_PATH, 'testimage.jpg'),  # smaller

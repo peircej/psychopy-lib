@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
+from __future__ import division, absolute_import
+from __future__ import print_function
 
+from past.builtins import basestring
+from builtins import object
 import numpy as np
 from collections import deque
 
@@ -12,7 +16,7 @@ from ..constants import EventConstants
 
 # Event Filter / Translator / Parser Class Prototype
 
-class DeviceEventFilter():
+class DeviceEventFilter(object):
     """Base class for creating a filtered / processed event stream from a
     device's iohub events. Any device event filter class MUST use this class as
     the base class type.
@@ -116,7 +120,7 @@ class DeviceEventFilter():
         self.process()
 
     def _removeOutputEvents(self):
-        """Called by the iohub Server when processing device events."""
+        """Called by the the iohub Server when processing device events."""
         oevts = self._output_events
         self._output_events = []
         return oevts
@@ -124,7 +128,7 @@ class DeviceEventFilter():
 ####################### Device Event Field Filter Types ##################
 
 
-class MovingWindowFilter():
+class MovingWindowFilter(object):
     """Maintains a moving window of size 'length', for a specific event field
     value, given by 'event_field_name'. knot_pos defines where in the window
     the next filtered value should always be returned from.
@@ -150,7 +154,7 @@ class MovingWindowFilter():
         length = kwargs.get('length')
         event_type = kwargs.get('event_type')
         event_field_name = kwargs.get('event_field_name')
-        if isinstance(knot_pos, str):
+        if isinstance(knot_pos, basestring):
             if knot_pos == 'center' and length % 2 == 0:
                 raise ValueError(
                     'MovingWindow length must be odd for a centered knot_pos.')

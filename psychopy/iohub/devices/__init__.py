@@ -1,24 +1,26 @@
-# -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
-# Distributed under the terms of the MIT License.
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
 
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
+# Distributed under the terms of the MIT License.
+from __future__ import division, absolute_import, print_function
+
+from builtins import zip
+from builtins import object
 import collections
 import copy
 import os
-import importlib
 from collections import deque
 from operator import itemgetter
 
-import sys
-from psychopy.plugins.util import getEntryPoints
-
 import numpy as np
 
+from .. import _pkgroot
 from .computer import Computer
 from ..errors import print2err, printExceptionDetailsToStdErr
 from ..util import convertCamelToSnake
-
+from future.utils import with_metaclass
 
 class ioDeviceError(Exception):
 
@@ -76,7 +78,7 @@ class ioObjectMetaClass(type):
         return parent
 
 
-class ioObject(metaclass=ioObjectMetaClass):
+class ioObject(with_metaclass(ioObjectMetaClass, object)):
     """The ioObject class is the base class for all ioHub Device and
     DeviceEvent classes.
 
@@ -136,13 +138,12 @@ class ioObject(metaclass=ioObjectMetaClass):
         rpcList = []
         dlist = dir(self)
         for d in dlist:
-            if d[0] != '_' and d not in ['asNumpyArray', ]:
+            if d[0] is not '_' and d not in ['asNumpyArray', ]:
                 if callable(getattr(self, d)):
                     rpcList.append(d)
         return rpcList
 
-
-# ########## Base Abstract Device that all other Devices inherit from ##########
+########### Base Abstract Device that all other Devices inherit from ##########
 
 
 class Device(ioObject):
@@ -153,12 +154,16 @@ class Device(ioObject):
 
     """
     DEVICE_USER_LABEL_INDEX = 0
-    DEVICE_BUFFER_LENGTH_INDEX = 1
-    DEVICE_NUMBER_INDEX = 2
-    DEVICE_MANUFACTURER_NAME_INDEX = 3
-    DEVICE_MODEL_NAME_INDEX = 4
-
-    DEVICE_MAX_ATTRIBUTE_INDEX = 4
+    DEVICE_NUMBER_INDEX = 1
+    DEVICE_MANUFACTURER_NAME_INDEX = 2
+    DEVICE_MODEL_NAME_INDEX = 3
+    DEVICE_MODEL_NUMBER_INDEX = 4
+    DEVICE_SOFTWARE_VERSION_INDEX = 5
+    DEVICE_HARDWARE_VERSION_INDEX = 6
+    DEVICE_FIRMWARE_VERSION_INDEX = 7
+    DEVICE_SERIAL_NUMBER_INDEX = 8
+    DEVICE_BUFFER_LENGTH_INDEX = 9
+    DEVICE_MAX_ATTRIBUTE_INDEX = 9
 
     # Multiplier to use to convert this devices event time stamps to sec format.
     # This is set by the author of the device class or interface
@@ -169,17 +174,36 @@ class Device(ioObject):
     _newDataTypes = [
         # The name given to this device instance. User Defined. Should be
         ('name', '|S24'),
-        ('event_buffer_length', np.uint16),
         # unique within all devices of the same type_id for a given experiment.
         # For devices that support multiple connected to the computer at once,
         # with some devices the device_number can be used to select which
-        # device to use.
+        # device ot use.
         ('device_number', np.uint8),
         # The name of the manufacturer for the device being used.
         ('manufacturer_name', '|S64'),
         # The string name of the device model being used. Some devices support
         # different models.
         ('model_name', '|S32'),
+        # The device model number being used. Some devices support different
+        # models.
+        ('model_number', '|S32'),
+        # Used to optionally store the devices software / API version being
+        # used by the ioHub Device
+        ('software_version', '|S8'),
+        # Used to optionally store the devices hardware version
+        ('hardware_version', '|S8'),
+        # Used to optionally store the devices firmware
+        ('firmware_version', '|S8'),
+        # The serial number for the device being used. Serial numbers 'should'
+        # be unique across all devices of the same brand and model.
+        ('serial_number', '|S32'),
+        # The serial number for the device being used. Serial numbers 'should'
+        # be unique across all devices of the same brand and model.
+        ('manufacture_date', '|S10'),
+        # The maximum size of the device level event buffer for this
+        ('event_buffer_length', np.uint16)
+        # device instance. If the buffer becomes full, when a new event
+        # is added, the oldest event in the buffer is removed.
     ]
 
     EVENT_CLASS_NAMES = []
@@ -237,6 +261,30 @@ class Device(ioObject):
         #: logic in the ioHub Device implementation based on the model_name given.
         self.model_name = None
 
+        #: Model number can be optionally used to hold the specific model number
+        #: specified on the device.
+        self.model_number = None
+
+        #: The software version attribute can optionally be used to store the
+        #: devices software / API version being used by the ioHub Device
+        self.software_version = None
+
+        #: The hardware version attribute can optionally be used to store the
+        #: physical devices hardware version / revision.
+        self.hardware_version = None
+
+        #: The firmware version attribute can optionally be used to store the
+        #: physical devices hardware version / revision.
+        self.firmware_version = None
+
+        #: The unique serial number of the specific device instance being used,
+        #: if applicable.
+        self.serial_number = None
+
+        #: The manufactured date of the specific device instance being used,
+        #: if applicable.(Use DD-MM-YYYY string format.)
+        self.manufacture_date = None
+
         ioObject.__init__(self, *args, **kwargs)
 
         self._is_reporting_events = kwargs.get('auto_report_events', False)
@@ -269,7 +317,7 @@ class Device(ioObject):
             None
 
         Returns:
-            (dict): The dictionary of the device configuration settings used
+            (dict): The dictionary of the device configuration settings used 
             to create the device.
 
         """
@@ -283,23 +331,14 @@ class Device(ioObject):
         contents.
 
         Args:
-            event_type_id (int): If specified, provides the ioHub DeviceEvent ID for which events
-            should be returned for.  Events that have occurred but do not match the event ID
-            specified are ignored. Event type ID's can be accessed via the EventConstants class;
-            all available event types are class attributes of EventConstants.
+            event_type_id (int): If specified, provides the ioHub DeviceEvent ID for which events should be returned for.  Events that have occurred but do not match the event ID specified are ignored. Event type ID's can be accessed via the EventConstants class; all available event types are class attributes of EventConstants.
 
-            clearEvents (int): Can be used to indicate if the events being returned should also be
-            removed from the device event buffer. True (the default) indicates to remove events
-            being returned. False results in events being left in the device event buffer.
+            clearEvents (int): Can be used to indicate if the events being returned should also be removed from the device event buffer. True (the default) indicates to remove events being returned. False results in events being left in the device event buffer.
 
-            asType (str): Optional kwarg giving the object type to return events as. Valid values
-            are 'namedtuple' (the default), 'dict', 'list', or 'object'.
+            asType (str): Optional kwarg giving the object type to return events as. Valid values are 'namedtuple' (the default), 'dict', 'list', or 'object'.
 
         Returns:
-            (list): New events that the ioHub has received since the last getEvents() or clearEvents()
-            call to the device. Events are ordered by the ioHub time of each event, older event at
-            index 0. The event object type is determined by the asType parameter passed to the method.
-            By default a namedtuple object is returned for each event.
+            (list): New events that the ioHub has received since the last getEvents() or clearEvents() call to the device. Events are ordered by the ioHub time of each event, older event at index 0. The event object type is determined by the asType parameter passed to the method. By default a namedtuple object is returned for each event.
 
         """
         self._iohub_server.processDeviceEvents()
@@ -335,13 +374,11 @@ class Device(ioObject):
                     call_proc_events=False)
         else:
             if filter_id:
-                [currentEvents.extend(
-                    [fe for fe in event if fe[
-                                      DeviceEvent.EVENT_FILTER_ID_INDEX] == filter_id]
-                                      ) for event in list(self._iohub_event_buffer.values())]
+                [currentEvents.extend([fe for fe in l if fe[
+                                      DeviceEvent.EVENT_FILTER_ID_INDEX] == filter_id]) for l in list(self._iohub_event_buffer.values())]
             else:
-                [currentEvents.extend(event)
-                 for event in list(self._iohub_event_buffer.values())]
+                [currentEvents.extend(l)
+                 for l in list(self._iohub_event_buffer.values())]
 
             if clearEvents is True and len(currentEvents) > 0:
                 self.clearEvents(filter_id=filter_id, call_proc_events=False)
@@ -400,10 +437,7 @@ class Device(ioObject):
 
 
         Args:
-            enabled (bool):  True (default) == Start to report device events to the ioHub Process.
-            False == Stop Reporting Events to the ioHub Process. Most Device types automatically
-            start sending events to the ioHUb Process, however some devices like the EyeTracker and
-            AnlogInput device's do not. The setting to control this behavior is 'auto_report_events'
+            enabled (bool):  True (default) == Start to report device events to the ioHub Process. False == Stop Reporting Events to the ioHub Process. Most Device types automatically start sending events to the ioHUb Process, however some devices like the EyeTracker and AnlogInput device's do not. The setting to control this behavior is 'auto_report_events'
 
         Returns:
             bool: The current reporting state.
@@ -535,14 +569,14 @@ class Device(ioObject):
         if self.isReportingEvents():
             self._native_event_buffer.append(e)
 
-    def _addEventListener(self, event, eventTypeIDs):
+    def _addEventListener(self, l, eventTypeIDs):
         for ei in eventTypeIDs:
-            self._event_listeners.setdefault(ei, []).append(event)
+            self._event_listeners.setdefault(ei, []).append(l)
 
-    def _removeEventListener(self, event):
+    def _removeEventListener(self, l):
         for etypelisteners in list(self._event_listeners.values()):
-            if event in etypelisteners:
-                etypelisteners.remove(event)
+            if l in etypelisteners:
+                etypelisteners.remove(l)
 
     def _getEventListeners(self, forEventType):
         return self._event_listeners.get(forEventType, [])
@@ -550,7 +584,7 @@ class Device(ioObject):
     def getCurrentDeviceState(self, clear_events=True):
         result_dict = {}
         self._iohub_server.processDeviceEvents()
-        events = {str(key): tuple(value)
+        events = {key: tuple(value)
                   for key, value in list(self._iohub_event_buffer.items())}
         result_dict['events'] = events
         if clear_events:
@@ -671,22 +705,16 @@ class Device(ioObject):
         Since any callbacks should take as little time to process as possible,
         a two stage approach is used to turn a native device event into an ioHub
         Device event representation:
-            #. This method is called by the native device interface as a callback, providing the necessary
-            # information to be able to create an ioHub event. As little processing should be done in this
-            # method as possible.
-            #. The data passed to this method, along with the time the callback was called, are passed as a
-            # tuple to the Device classes _addNativeEventToBuffer method.
-            #. During the ioHub Servers event processing routine, any new native events that have been added
-            # to the ioHub Server using the _addNativeEventToBuffer method are passed individually to the
-            # _getIOHubEventObject method, which must also be implemented by the given Device subclass.
-            #. The _getIOHubEventObject method is responsible for the actual conversion of the native event
-            # representation to the required ioHub Event representation for the accociated event type.
+            #. This method is called by the native device interface as a callback, providing the necessary information to be able to create an ioHub event. As little processing should be done in this method as possible.
+            #. The data passed to this method, along with the time the callback was called, are passed as a tuple to the Device classes _addNativeEventToBuffer method.
+            #. During the ioHub Servers event processing routine, any new native events that have been added to the ioHub Server using the _addNativeEventToBuffer method are passed individually to the _getIOHubEventObject method, which must also be implemented by the given Device subclass.
+            #. The _getIOHubEventObject method is responsible for the actual conversion of the native event representation to the required ioHub Event representation for the accociated event type.
 
         Args:
-            args(tuple): tuple of non keyword arguments passed to the callback.
+            args(tuple): tuple of non keyword arguements passed to the callback.
 
         Kwargs:
-            kwargs(dict): dict of keyword arguments passed to the callback.
+            kwargs(dict): dict of keyword arguements passed to the callback.
 
         Returns:
             None
@@ -728,8 +756,7 @@ class Device(ioObject):
     def __del__(self):
         self._close()
 
-
-# ########## Base Device Event that all other Device Events inherit from ##
+########### Base Device Event that all other Device Events inherit from ##
 
 
 class DeviceEvent(ioObject):
@@ -781,7 +808,7 @@ class DeviceEvent(ioObject):
 
         # The unique id assigned to the device that generated the event.
         ('device_id', np.uint8),
-        # Currently not used, but will be in the future for device types that
+        # CUrrrently not used, but will be in the future for device types that
         # support > one instance of that device type to be enabled
         # during an experiment. Currently only one device of a given type
         # can be used in an experiment.
@@ -946,77 +973,16 @@ class DeviceEvent(ioObject):
     @classmethod
     def createEventAsNamedTuple(cls, valueList):
         return cls.namedTupleClass(*valueList)
-
-
 #
 # Import Devices and DeviceEvents
 #
 
 
-def importDeviceModule(modulePath):
-    """
-    Resolve an import string to import the module for a particular device.
-
-    Will iteratively check plugin entry points too.
-
-    Parameters
-    ----------
-    modulePath : str
-        Import path for the requested module
-
-    Return
-    ------
-    types.ModuleType
-        Requested module
-
-    Raises
-    ------
-    ModuleNotFoundError
-        If module doesn't exist, will raise this error.
-    """
-    module = None
-    try:
-        # try importing as is (this was the only way prior to plugins)
-        module = importlib.import_module(modulePath)
-    except ModuleNotFoundError:
-        # get entry point groups targeting iohub.devices
-        entryPoints = getEntryPoints("psychopy.iohub.devices", submodules=True, flatten=False)
-        # iterate through found groups
-        for group in entryPoints:
-            # skip irrelevant groups
-            if not modulePath.startswith(group):
-                continue
-            # get the module of the entry point group
-            module_group = importlib.import_module(group)
-            # get the entry point target module(s)
-            for ep in entryPoints[group]:
-                module_name = ep.name
-                ep_target = ep.load()
-                # bind each entry point module to the existing module tree
-                setattr(module_group, module_name, ep_target)
-                sys.modules[group + '.' + module_name] = ep_target
-
-        # re-try importing the module
-        try:
-            module = importlib.import_module(modulePath)
-        except ModuleNotFoundError:
-            pass
-
-    # raise error if all import options failed
-    if module is None:
-        raise ModuleNotFoundError(
-            f"Could not find module `{modulePath}`. Tried importing directly "
-            f"and iteratively using entry points."
-        )
-
-    return module
+import sys
 
 
 def import_device(module_path, device_class_name):
-    # get module from module_path
-    module = importDeviceModule(module_path)
-
-    # get device class from module
+    module = __import__(module_path, fromlist=["{}".format(device_class_name)])
     device_class = getattr(module, device_class_name)
 
     setattr(sys.modules[__name__], device_class_name, device_class)
@@ -1027,7 +993,8 @@ def import_device(module_path, device_class_name):
         event_constant_string = convertCamelToSnake(
             event_class_name[:-5], False)
 
-        event_class = getattr(module, event_class_name)
+        event_module = __import__(module_path, fromlist=[event_class_name])
+        event_class = getattr(event_module, event_class_name)
 
         event_class.DEVICE_PARENT = device_class
 
@@ -1037,10 +1004,10 @@ def import_device(module_path, device_class_name):
 
     return device_class, device_class_name, event_classes
 
-
 try:
     if getattr(sys.modules[__name__], 'Display', None) is None:
-        display_class, device_class_name, event_classes = import_device('psychopy.iohub.devices.display', 'Display')
+        display_class, device_class_name, event_classes = import_device(
+            '%s.devices.display' % (_pkgroot), 'Display')
         setattr(sys.modules[__name__], 'Display', display_class)
 except Exception:
     print2err('Warning: display device module could not be imported.')

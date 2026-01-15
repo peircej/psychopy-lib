@@ -6,7 +6,6 @@ import traceback
 import yaml
 import os
 import sys
-import codecs
 
 from psychopy.localization import _translate
 
@@ -27,8 +26,7 @@ alertLog : List
 
 _activeAlertHandlers = []
 
-
-class AlertCatalog:
+class AlertCatalog(object):
     """A class for loading alerts from the alerts catalogue yaml file"""
     def __init__(self):
         self.alert = self.load()
@@ -54,7 +52,7 @@ class AlertCatalog:
         for filePath in self.alertFiles:
             # '{}'.format(filePath) instead of simple open(filePath,'r')
             # is needed for Py2 support only
-            with codecs.open('{}'.format(filePath), 'r', 'utf-8') as ymlFile:
+            with open('{}'.format(filePath), 'r') as ymlFile:
                 entry = yaml.load(ymlFile, Loader=yaml.SafeLoader)
                 if entry is None:
                     continue  # this might be a stub for future entry
@@ -67,7 +65,7 @@ class AlertCatalog:
         return alertDict
 
 
-class AlertEntry:
+class AlertEntry(object):
     """An Alerts data class holding alert data as attributes
 
     Attributes
@@ -118,14 +116,10 @@ class AlertEntry:
         else:
             self.name = None
 
-        # _translate(catalog.alert[code]['msg']) works, but string literals
-        # in _translate() (i.e., 'msg' in this case) cause false detection 
-        # by pybabel.
-        msg = catalog.alert[code]['msg']
         if strFields:
-            self.msg = _translate(msg).format(**strFields)
+            self.msg = _translate(catalog.alert[code]['msg']).format(**strFields)
         else:
-            self.msg = _translate(msg)
+            self.msg = _translate(catalog.alert[code]['msg'])
 
         if trace:
             self.trace = ''.join(traceback.format_exception(
@@ -161,62 +155,26 @@ def alert(code=None, obj=object, strFields=None, trace=None):
                         cat=msg.cat,
                         msg=msg.msg,
                         trace=msg.trace))
-    if len(_activeAlertHandlers):
-        # if we have any active handlers, send to them
-        for handler in _activeAlertHandlers:
-            # send alert
-            handler.receiveAlert(msg)
-    elif hasattr(sys.stderr, 'receiveAlert'):
-        # if there aren't any, but stdout can receive alerts, send to stdout
+    # msgAsStr = ("Component Type: {type} | "
+    #             "Component Name: {name} | "
+    #             "Code: {code} | "
+    #             "Category: {cat} | "
+    #             "Message: {msg} | "
+    #             "Traceback: {trace}".format(type=msg.type,
+    #                                         name=msg.name,
+    #                                         code=msg.code,
+    #                                         cat=msg.cat,
+    #                                         msg=msg.msg,
+    #                                         trace=msg.trace))
+
+    # if a psychopy warning instead of a file-like stderr then pass a raw str
+    if hasattr(sys.stderr, 'receiveAlert'):
         sys.stderr.receiveAlert(msg)
     else:
-        # otherwise, just write as a string to stdout
+        # For tests detecting output - change when error handler set up
         sys.stderr.write(msgAsStr)
-
-
-def isAlertHandler(handler):
-    """
-    Is the given handler an alert handler?
-
-    Parameters
-    ----------
-    handler : ScriptOutputCtrl
-        Handler to query.
-    
-    Returns
-    -------
-    bool
-        True if the given handler is an alert handler.
-    """
-    return handler in _activeAlertHandlers
-
-
-def addAlertHandler(handler):
-    """
-    Add a handler to the list of active alert handlers.
-
-    Parameters
-    ----------
-    handler : ScriptOutputCtrl
-        Handler to add.
-    """
-    if not isAlertHandler(handler):
-        _activeAlertHandlers.append(handler)
-
-
-def removeAlertHandler(handler):
-    """
-    Remove a handler from the list of active alert handlers.
-
-    Parameters
-    ----------
-    handler : ScriptOutputCtrl
-        Handler to remove.
-    """
-    if isAlertHandler(handler):
-        _activeAlertHandlers.pop(
-            _activeAlertHandlers.index(handler)
-        )
+        for handler in _activeAlertHandlers:
+            handler.receiveAlert(msg)
 
 
 # Create catalog

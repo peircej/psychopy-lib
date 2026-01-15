@@ -1,8 +1,10 @@
 """ Test starting and stopping iohub server
 """
-from psychopy.tests.test_iohub.testutil import startHubProcess, stopHubProcess
+import pytest
+from psychopy.tests.utils import skip_under_travis
+from psychopy.tests.test_iohub.testutil import startHubProcess, stopHubProcess, getTime
 
-
+@skip_under_travis
 def testDefaultServerLaunch():
     """
     """
@@ -17,3 +19,4 @@ def testDefaultServerLaunch():
     assert exp != None
 
     stopHubProcess()
+

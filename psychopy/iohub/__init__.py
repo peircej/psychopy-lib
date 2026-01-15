@@ -1,47 +1,49 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+#  -*- coding: utf-8 -*-
+
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
+from __future__ import division, absolute_import, print_function
 
 import sys
-import platform
+
 from .errors import print2err, printExceptionDetailsToStdErr
-from .util import module_directory
+from .util import module_directory, fix_encoding
+
+fix_encoding.fix_encoding()
 
 if sys.platform == 'darwin':
     import objc  # pylint: disable=import-error
 
 EXP_SCRIPT_DIRECTORY = ''
 
-
 def _localFunc():
     return None
-
-
 IOHUB_DIRECTORY = module_directory(_localFunc)
 
+_ispkg = True
+_pkgroot = 'iohub'
+if IOHUB_DIRECTORY.find('psychopy') >= 0:
+    _ispkg = False
+    _pkgroot = 'psychopy.iohub'
+
+_DATA_STORE_AVAILABLE = False
 try:
-    import tables
+    import tables # pylint: disable=wrong-import-position, wrong-import-order
     _DATA_STORE_AVAILABLE = True
-except ModuleNotFoundError:
-    print2err('WARNING: pytables package not found. ',
-            'ioHub hdf5 datastore functionality will be disabled.')
-    _DATA_STORE_AVAILABLE = False
 except ImportError:
-    print2err('WARNING: pytables package failed to load. ',
-            'ioHub hdf5 datastore functionality will be disabled.')
-    _DATA_STORE_AVAILABLE = False
-except Exception:
+    print2err('WARNING: pytables package not found. ',
+              'ioHub functionality will be disabled.')
+except Exception: # pylint: disable=broad-except
     printExceptionDetailsToStdErr()
 
-from psychopy.iohub.constants import EventConstants, KeyboardConstants, MouseConstants
+from .client.expruntime import ioHubExperimentRuntime
 
 lazyImports = """
-from psychopy.iohub.client.connect import launchHubServer
-from psychopy.iohub.devices.computer import Computer
-from psychopy.iohub.client.eyetracker.validation import ValidationProcedure
-"""
+from {pkgroot}.client.connect import launchHubServer
+from {pkgroot}.devices.computer import Computer
+""".format(pkgroot=_pkgroot)
 
 try:
     from psychopy.contrib.lazy_import import lazy_import

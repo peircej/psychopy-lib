@@ -1,4 +1,4 @@
-
+import collections
 import psychopy.hardware as hw
 import pytest
 try:
@@ -12,11 +12,6 @@ except Exception:
 else:
     def require_mock(fn):
         return fn
-
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
 
 try:
     from contextlib import nested  # Python 2
@@ -82,7 +77,7 @@ def test_getCRSPhotometers():
             for p in photoms:
                 assert p.longName != "CRS ColorCAL"
 
-            assert isinstance(photoms, Iterable)
+            assert isinstance(photoms,collections.Iterable)
             # missing crs shouldn't break it
             assert len(photoms) > 0
     except (AssertionError, ImportError):
@@ -110,8 +105,19 @@ def test_getCRSPhotometers():
         photoms = list(hw.getAllPhotometers())
         assert faked in photoms
 
+def test_getPhotometers():
+    photoms = hw.getAllPhotometers()
+
+    # Always iterable
+    assert isinstance(photoms,collections.Iterable)
+
+    photoms = list(photoms)
+
+    assert len(photoms) > 0
+
+
 # I wish our PR650 would behave like this ;-)
-_MockPhotometer = type("MockPhotometer",(),{"OK": True,"type": "MockPhotometer"})
+_MockPhotometer = type("MockPhotometer",(object,),{"OK": True,"type": "MockPhotometer"})
 
 _workingPhotometer = lambda port: _MockPhotometer
 
@@ -126,7 +132,7 @@ def test_findPhotometer():
     # even when both are empty
     assert (hw.findPhotometer(device=[],ports=[]) is None)
 
-    # non-existent photometers return None, for now
+    # non-existant photometers return None, for now
     assert (hw.findPhotometer(device="thisIsNotAPhotometer!") is None)
 
     # if the photometer raises an exception don't crash, return None

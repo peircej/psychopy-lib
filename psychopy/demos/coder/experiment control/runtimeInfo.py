@@ -6,6 +6,9 @@ Demo of some ways to use class psychopy.info.RunTimeInfo()
 to obtain current system and other data at run-time.
 """
 
+from __future__ import absolute_import, division, print_function
+
+from builtins import str
 from psychopy import visual, logging, core
 import psychopy.info
 
@@ -25,7 +28,7 @@ logging.console.setLevel(logging.DEBUG)
 runInfo = psychopy.info.RunTimeInfo(
         # if you specify author and version here, it overrides the automatic detection of __author__ and __version__ in your script
         # author=' < your name goes here, plus whatever you like, e.g., your lab or contact info > ',
-        # version="2025.2.0",
+        # version=" < your experiment version info > ",
         win=win,    #  # a psychopy.visual.Window() instance; None = default temp window used; False = no win, no win.flips()
         refreshTest='grating',  #  # None, True, or 'grating' (eye-candy to avoid a blank screen)
         verbose=True,  #  # True means report on everything

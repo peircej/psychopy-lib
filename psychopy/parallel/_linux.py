@@ -9,10 +9,13 @@
 # This is necessary to stop the local parallel.py masking the module
 # we actually want to find!
 
+from __future__ import absolute_import, print_function
+
 # We duck-type the parallel port objects
 
 
-class PParallelLinux:
+from builtins import object
+class PParallelLinux(object):
     """This class provides read/write access to the parallel port for linux
     using pyparallel.
 

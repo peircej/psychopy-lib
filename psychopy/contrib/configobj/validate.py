@@ -167,6 +167,22 @@ __all__ = (
 )
 
 
+#TODO - #21 - six is part of the repo now, but we didn't switch over to it here
+# this could be replaced if six is used for compatibility, or there are no
+# more assertions about items being a string
+if sys.version_info < (3,):
+    string_type = basestring
+else:
+    string_type = str
+    # so tests that care about unicode on 2.x can specify unicode, and the same
+    # tests when run on 3.x won't complain about a undefined name "unicode"
+    # since all strings are unicode on 3.x we just want to pass it through
+    # unchanged
+    unicode = lambda x: x
+    # in python 3, all ints are equivalent to python 2 longs, and they'll
+    # never show "L" in the repr
+    long = int
+
 _list_arg = re.compile(r'''
     (?:
         ([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*list\(
@@ -270,20 +286,20 @@ def numToDottedQuad(num):
     """
     Convert int or long int to dotted quad string
 
-    >>> numToDottedQuad(int(-1))
+    >>> numToDottedQuad(long(-1))
     Traceback (most recent call last):
     ValueError: Not a good numeric IP: -1
-    >>> numToDottedQuad(int(1))
+    >>> numToDottedQuad(long(1))
     '0.0.0.1'
-    >>> numToDottedQuad(16777218)
+    >>> numToDottedQuad(long(16777218))
     '1.0.0.2'
-    >>> numToDottedQuad(16908291)
+    >>> numToDottedQuad(long(16908291))
     '1.2.0.3'
-    >>> numToDottedQuad(16909060)
+    >>> numToDottedQuad(long(16909060))
     '1.2.3.4'
-    >>> numToDottedQuad(4294967295)
+    >>> numToDottedQuad(long(4294967295))
     '255.255.255.255'
-    >>> numToDottedQuad(4294967296)
+    >>> numToDottedQuad(long(4294967296))
     Traceback (most recent call last):
     ValueError: Not a good numeric IP: 4294967296
     >>> numToDottedQuad(-1)
@@ -442,7 +458,7 @@ class VdtValueTooLongError(VdtValueError):
         ValidateError.__init__(self, 'the value "{}" is too long.'.format(value))
 
 
-class Validator:
+class Validator(object):
     """
     Validator is an object that allows you to register a set of 'checks'.
     These checks take input and test that it conforms to the check.
@@ -465,9 +481,9 @@ class Validator:
     ...     # check that value is of the correct type.
     ...     # possible valid inputs are integers or strings
     ...     # that represent integers
-    ...     if not isinstance(value, (int, str)):
+    ...     if not isinstance(value, (int, long, string_type)):
     ...         raise VdtTypeError(value)
-    ...     elif isinstance(value, str):
+    ...     elif isinstance(value, string_type):
     ...         # if we are given a string
     ...         # attempt to convert to an integer
     ...         try:
@@ -738,7 +754,7 @@ def _is_num_param(names, values, to_float=False):
     for (name, val) in zip(names, values):
         if val is None:
             out_params.append(val)
-        elif isinstance(val, (int, float, str)):
+        elif isinstance(val, (int, long, float, string_type)):
             try:
                 out_params.append(fun(val))
             except ValueError:
@@ -796,9 +812,9 @@ def is_integer(value, min=None, max=None):
     """
     (min_val, max_val) = _is_num_param(  # pylint: disable=unbalanced-tuple-unpacking
         ('min', 'max'), (min, max))
-    if not isinstance(value, (int, str)):
+    if not isinstance(value, (int, long, string_type)):
         raise VdtTypeError(value)
-    if isinstance(value, str):
+    if isinstance(value, string_type):
         # if it's a string - does it represent an integer ?
         try:
             value = int(value)
@@ -848,7 +864,7 @@ def is_float(value, min=None, max=None):
     """
     (min_val, max_val) = _is_num_param(  # pylint: disable=unbalanced-tuple-unpacking
         ('min', 'max'), (min, max), to_float=True)
-    if not isinstance(value, (int, float, str)):
+    if not isinstance(value, (int, long, float, string_type)):
         raise VdtTypeError(value)
     if not isinstance(value, float):
         # if it's a string - does it represent a float ?
@@ -913,13 +929,13 @@ def is_boolean(value):
     VdtTypeError: the value "up" is of the wrong type.
 
     """
-    if isinstance(value, str):
+    if isinstance(value, string_type):
         try:
             return bool_dict[value.lower()]
         except KeyError:
             raise VdtTypeError(value)
     # we do an equality test rather than an identity test
-    # this ensures Python 2.2 compatibility
+    # this ensures Python 2.2 compatibilty
     # and allows 0 and 1 to represent True and False
     if value == False:
         return False
@@ -956,7 +972,7 @@ def is_ip_addr(value):
     Traceback (most recent call last):
     VdtTypeError: the value "0" is of the wrong type.
     """
-    if not isinstance(value, str):
+    if not isinstance(value, string_type):
         raise VdtTypeError(value)
     value = value.strip()
     try:
@@ -999,7 +1015,7 @@ def is_list(value, min=None, max=None):
     """
     (min_len, max_len) = _is_num_param(  # pylint: disable=unbalanced-tuple-unpacking
         ('min', 'max'), (min, max))
-    if isinstance(value, str):
+    if isinstance(value, string_type):
         raise VdtTypeError(value)
     try:
         num_members = len(value)
@@ -1068,7 +1084,7 @@ def is_string(value, min=None, max=None):
     Traceback (most recent call last):
     VdtValueTooLongError: the value "1234" is too long.
     """
-    if not isinstance(value, str):
+    if not isinstance(value, string_type):
         raise VdtTypeError(value)
     (min_len, max_len) = _is_num_param(  # pylint: disable=unbalanced-tuple-unpacking
         ('min', 'max'), (min, max))
@@ -1175,7 +1191,7 @@ def is_string_list(value, min=None, max=None):
     Traceback (most recent call last):
     VdtTypeError: the value "hello" is of the wrong type.
     """
-    if isinstance(value, str):
+    if isinstance(value, string_type):
         raise VdtTypeError(value)
     return [is_string(mem) for mem in is_list(value, min, max)]
 
@@ -1208,7 +1224,7 @@ def force_list(value, min=None, max=None):
     trailing comma that turns a single value into a list.
 
     You can optionally specify the minimum and maximum number of members.
-    A minimum of greater than one will fail if the user only supplies a
+    A minumum of greater than one will fail if the user only supplies a
     string.
 
     >>> vtor.check('force_list', ())
@@ -1310,7 +1326,7 @@ def is_option(value, *options):
     Traceback (most recent call last):
     VdtTypeError: the value "0" is of the wrong type.
     """
-    if not isinstance(value, str):
+    if not isinstance(value, string_type):
         raise VdtTypeError(value)
     if not value in options:
         raise VdtValueError(value)
@@ -1384,13 +1400,13 @@ def _test(value, *args, **keywargs):
 
     Bug test for unicode arguments
     >>> v = Validator()
-    >>> v.check('string(min=4)', 'test') == 'test'
+    >>> v.check(unicode('string(min=4)'), unicode('test')) == unicode('test')
     True
 
     >>> v = Validator()
-    >>> v.get_default_value('string(min=4, default="1234")') == '1234'
+    >>> v.get_default_value(unicode('string(min=4, default="1234")')) == unicode('1234')
     True
-    >>> v.check('string(min=4, default="1234")', 'test') == 'test'
+    >>> v.check(unicode('string(min=4, default="1234")'), unicode('test')) == unicode('test')
     True
 
     >>> v = Validator()

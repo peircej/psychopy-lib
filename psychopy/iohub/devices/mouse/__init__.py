@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
+from __future__ import division, print_function, absolute_import
+
 from collections import namedtuple
 
 import numpy as np
@@ -10,7 +12,6 @@ from .. import Device, Computer
 from ...constants import EventConstants, DeviceConstants
 from ...constants import MouseConstants, KeyboardConstants
 from ...errors import print2err, printExceptionDetailsToStdErr
-from psychopy.tools.monitorunittools import cm2pix, deg2pix, pix2cm, pix2deg
 
 RectangleBorder = namedtuple('RectangleBorderClass', 'left top right bottom')
 currentSec = Computer.getTime
@@ -115,7 +116,7 @@ class MouseDevice(Device):
             pos ( (x,y) list or tuple ): The position, in Display
             coordinate space, to set the mouse position too.
 
-            display_index (int): Optional argument giving the display index
+            display_index (int): Optional arguement giving the display index
             to set the mouse pos within. If None, the active ioHub Display
             device index is used.
 
@@ -123,7 +124,7 @@ class MouseDevice(Device):
             tuple: new (x,y) position of mouse in Display coordinate space.
         """
         try:
-            pos = pos[0], pos[1]
+            pos = int(pos[0]), int(pos[1])
         except Exception:
             print2err('Warning: Mouse.setPosition: pos must be a list of '
                       'two numbers, not: ', pos)
@@ -160,76 +161,13 @@ class MouseDevice(Device):
             print2err(' mouse.setPos did not update mouse pos')
         else:
             self._lastPosition = self._position
-            self._position = pos[0], pos[1]
+            self._position = px, py
 
             self._last_display_index = self._display_index
             self._display_index = mouse_display_index
 
             self._nativeSetMousePos(px, py)
         return self._position
-
-    def _desktopToWindowPos(self, dpos):
-        winfos = self._iohub_server._psychopy_windows
-        for w in winfos.values():
-            mx, my = dpos
-            wx, wy = w['pos'][0],  w['pos'][1]
-            ww, wh = w['size'][0], w['size'][1]
-            if w['useRetina']:
-                ww = ww / 2
-                wh = wh / 2
-            if wx <= mx <= wx+ww:
-                if wy <= my <= wy + wh:
-                    return w['handle'], mx - wx - ww/2, -(my - wy - wh/2)
-        return None, None, None
-
-    def _pix2windowUnits(self, win_handle, pos):
-        win = self._iohub_server._psychopy_windows.get(win_handle)
-        win_units = win['units']
-        monitor = win['monitor']
-        pos = np.asarray(pos)
-        if win_units == 'pix':
-            return pos
-        elif win_units == 'norm':
-            return pos * 2.0 / win['size']
-        elif win_units == 'cm':
-            if monitor:
-                return pix2cm(pos, monitor['monitor'])
-            else:
-                # should raise exception?
-                print2err("iohub Mouse error: Window is using units %s but has no Monitor definition." % win_units)
-        elif win_units == 'deg':
-            if monitor:
-                return pix2deg(pos, monitor['monitor'])
-            else:
-                # should raise exception?
-                print2err("iohub Mouse error: Window is using units %s but has no Monitor definition." % win_units)
-        elif win_units == 'height':
-            return pos / float(win['size'][1])
-
-    def _windowUnits2pix(self, win_handle, pos):
-        win = self._iohub_server._psychopy_windows.get(win_handle)
-        win_units = win['units']
-        monitor = win['monitor']
-        pos = np.asarray(pos)
-        if win_units == 'pix':
-            return pos
-        elif win_units == 'norm':
-            return pos * win['size'] / 2.0
-        elif win_units == 'cm':
-            if monitor:
-                return cm2pix(pos, monitor['monitor'])
-            else:
-                # should raise exception?
-                print2err("iohub Mouse error: Window is using units %s but has no Monitor definition." % win_units)
-
-        elif win_units == 'deg':
-            if monitor:
-                return deg2pix(pos, monitor['monitor'])
-            else:
-                # should raise exception
-                print2err("iohub Mouse error: Window is using units %s but has no Monitor definition." % win_units)
-        elif win_units == 'height':
-            return pos * float(win['size'][1])
 
     def getDisplayIndex(self):
         """
@@ -239,7 +177,7 @@ class MouseDevice(Device):
         presentation, then mouse position is in the display's coordinate units.
         If the display index != the index of the display being used for
         stimulus
-        presentation, then mouse position is in OS system mouse coordinate
+        presentation, then mouse position is in OS system mouse ccordinate
         space.
 
         Args:
@@ -269,9 +207,6 @@ class MouseDevice(Device):
             self._initialMousePos()
             cpos = self._position
             lpos = self._lastPosition
-            if lpos is None:
-                lpos = cpos[0], cpos[1]
-
             change_x = cpos[0] - lpos[0]
             change_y = cpos[1] - lpos[1]
             if return_display_index is True:
@@ -416,9 +351,9 @@ class MouseInputEvent(DeviceEvent):
         ('pressed_buttons', np.uint8),
 
         # x position of the position when the event occurred
-        ('x_position', np.float64),
+        ('x_position', np.int16),
         # y position of the position when the event occurred
-        ('y_position', np.float64),
+        ('y_position', np.int16),
 
         # horizontal scroll wheel position change when the event occurred (OS X
         # only)
@@ -485,7 +420,7 @@ class MouseInputEvent(DeviceEvent):
         #: occurred,
         #: provided in online events as a list of the modifier constant labels
         #: specified in iohub.ModifierConstants
-        #: list: Empty if no modifiers are pressed, otherwise each element is
+        #: list: Empty if no modifiers are pressed, otherwise each elemnt is
         #  the string name of a modifier constant.
         self.modifiers = 0
 

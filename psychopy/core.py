@@ -4,9 +4,12 @@
 """Basic functions, including timing, rush (imported), quit
 """
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
+from __future__ import absolute_import, division, print_function
+
+from builtins import object
 import sys
 import threading
 import subprocess
@@ -22,8 +25,7 @@ from psychopy.clock import (MonotonicClock, Clock, CountdownTimer,
 # particular OS
 from psychopy.platform_specific import rush  # pylint: disable=W0611
 from psychopy import logging
-from psychopy.constants import STARTED, NOT_STARTED, FINISHED
-from psychopy.piloting import PILOTING, getPilotMode, setPilotMode, setPilotModeFromArgs
+from psychopy.constants import STARTED, NOT_STARTED, FINISHED, PY3
 
 try:
     import pyglet
@@ -72,12 +74,6 @@ def quit():
     """
     # pygame.quit()  # safe even if pygame was never initialised
     logging.flush()
-
-    # properly shutdown ioHub server
-    from psychopy.iohub.client import ioHubConnection
-
-    if ioHubConnection.ACTIVE_CONNECTION:
-        ioHubConnection.ACTIVE_CONNECTION.quit()
 
     for thisThread in threading.enumerate():
         if hasattr(thisThread, 'stop') and hasattr(thisThread, 'running'):
@@ -148,15 +144,20 @@ def shellCall(shellCmd, stdin='', stderr=False, env=None, encoding=None):
         else:
             cmdObjects.append(obj.decode('utf-8'))
 
-    # the `encoding` parameter results in unicode coming back
-    if sys.version_info.minor >= 6:
+    # Since Python 3.6, we can use the `encoding` parameter.
+    if PY3:
+        if sys.version_info.minor >= 6:
+            proc = subprocess.Popen(cmdObjects, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    encoding=encoding, env=env)
+        else:
+            msg = 'shellCall() requires Python 2.7, or 3.6 and newer.'
+            raise RuntimeError(msg)
+    else:
         proc = subprocess.Popen(cmdObjects, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                encoding=encoding, env=env)
-    else:
-        msg = 'shellCall() requires Python 2.7, or 3.6 and newer.'
-        raise RuntimeError(msg)
+                                stderr=subprocess.PIPE, env=env)
 
     stdoutData, stderrData = proc.communicate(stdin)
 

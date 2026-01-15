@@ -9,6 +9,8 @@ connect the earphones jack to the AIN0 (and GND) pins of the labjack.
 (The PsychoPy team would be interested to hear how your measurements go)
 """
 
+from __future__ import absolute_import, division, print_function
+
 import psychopy
 from psychopy import visual, core, event, sound
 from labjack import u3
@@ -94,8 +96,8 @@ elif sys.platform == 'win32':
     sysName = 'win'
     sysVer = platform.win32_ver()[0]
 elif sys.platform.startswith('linux'):
-    import distro
-    sysName = 'linux_' + '_'.join([distro.name(), distro.version(), distro.codename()])
+    from distro import linux_distribution
+    sysName = 'linux_' + linux_distribution()
     sysVer = platform.release()
 else:
     sysName = sysVer = 'n/a'

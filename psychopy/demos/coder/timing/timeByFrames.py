@@ -11,18 +11,16 @@ Shut down as many applications as possible, especially those that
 might try to update
 """
 
+from __future__ import division
+from __future__ import print_function
+
+from builtins import range
 from psychopy import visual, logging, core, event
 visual.useFBO = True  # if available (try without for comparison)
 
 import matplotlib
+matplotlib.use('Qt5Agg')  # change this to control the plotting 'back end'
 import pylab
-import sys
-if sys.platform == "darwin":
-    # on Mac...
-    matplotlib.use('QtAgg')
-else:
-    # on any other OS...
-    matplotlib.use('Qt4Agg')
 
 nIntervals = 500
 win = visual.Window([1280, 1024], fullscr=True, allowGUI=False, waitBlanking=True)
@@ -68,7 +66,7 @@ pylab.xlabel('frame N')
 pylab.title(droppedString)
 
 pylab.subplot(1, 2, 2)
-pylab.hist(intervalsMS, 50, histtype='stepfilled')
+pylab.hist(intervalsMS, 50, normed=0, histtype='stepfilled')
 pylab.xlabel('t (ms)')
 pylab.ylabel('n frames')
 pylab.title(distString)

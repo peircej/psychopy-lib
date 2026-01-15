@@ -7,6 +7,8 @@ Demo of psychopy.visual.ShapeStim: lines and arbitrary fillable shapes
 See shapeContains.py for dynamic interaction of ShapeStim and Mouse.
 """
 
+from __future__ import division
+
 from psychopy import visual, event, core
 from psychopy.visual import ShapeStim
 
@@ -61,3 +63,4 @@ win.close()
 core.quit()
 
 # The contents of this file are in the public domain.
+

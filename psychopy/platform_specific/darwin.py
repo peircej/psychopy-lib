@@ -2,9 +2,14 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
+from __future__ import absolute_import, division, print_function
+
+from past.utils import old_div
+import sys
+import time
 from psychopy import logging
 try:
     import ctypes
@@ -105,6 +110,8 @@ def getBusFreq():
 def rush(value=True, realtime=False):
     """Raise the priority of the current thread / process.
 
+    Win32 and macOS only so far - on linux use os.nice(niceIncrement)
+
     Set with rush(True) or rush(False).
 
     realtime arg is not used by osx implementation.
@@ -121,10 +128,10 @@ def rush(value=True, realtime=False):
         bus = getBusFreq()
         extendedPolicy = _timeConstraintThreadPolicy()
         # number of cycles in hz (make higher than frame rate)
-        extendedPolicy.period = bus // 160
-        extendedPolicy.computation = bus // 320  # half of that period
+        extendedPolicy.period = old_div(bus, 160)
+        extendedPolicy.computation = old_div(bus, 320)  # half of that period
         # max period that they should be carried out in
-        extendedPolicy.constrain = bus // 640
+        extendedPolicy.constrain = old_div(bus, 640)
         extendedPolicy.preemptible = 1
         extendedPolicy = getThreadPolicy(getDefault=True,
                                          flavour=THREAD_TIME_CONSTRAINT_POLICY)
@@ -147,7 +154,7 @@ def rush(value=True, realtime=False):
                                       # send the address of the struct
                                       ctypes.byref(extendedPolicy),
                                       THREAD_STANDARD_POLICY_COUNT)
-    return err == KERN_SUCCESS
+    return True
 
 
 def getThreadPolicy(getDefault, flavour):
@@ -162,13 +169,13 @@ def getThreadPolicy(getDefault, flavour):
            .constrain
            .preemptible
 
-    See https://docs.huihoo.com/darwin/kernel-programming-guide/scheduler/chapter_8_section_4.html
+    See http://docs.huihoo.com/darwin/kernel-programming-guide/scheduler/chapter_8_section_4.html
     """
     if importCtypesFailed:
         return False
 
     extendedPolicy = _timeConstraintThreadPolicy()  # to store the infos
-    # we want to retrieve actual policy or the default
+    # we want to retrive actual policy or the default
     getDefault = ctypes.c_int(getDefault)
     err = cocoa.thread_policy_get(cocoa.mach_thread_self(),
                                   THREAD_TIME_CONSTRAINT_POLICY,
@@ -264,9 +271,9 @@ def waitForVBL(screen=0, nFrames=1):
         return False
 
     scrID = getScreen(screen)
-    framePeriod = 1.0 / getRefreshRate(screen)
+    framePeriod = old_div(1.0, getRefreshRate(screen))
     if screen > 0:  # got multiple screens, check if they have same rate
-        mainFramePeriod = 1.0 / getRefreshRate(0)
+        mainFramePeriod = old_div(1.0, getRefreshRate(0))
         if mainFramePeriod != framePeriod:
             # CGDisplayBeamPosition is unpredictable in this case - usually
             # synced to the first monitor, but maybe better if 2 gfx cards?

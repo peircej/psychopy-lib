@@ -7,6 +7,8 @@ Demo: Using an arbitrary numpy array as a visual stimulus.
 Also illustrates logging DEBUG level details to the console.
 """
 
+from __future__ import division
+
 from psychopy import visual, event, core, logging
 import numpy
 

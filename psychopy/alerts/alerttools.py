@@ -1,5 +1,4 @@
 import ast
-
 from numpy import array
 from esprima import parseScript
 
@@ -7,7 +6,7 @@ from psychopy.tools import monitorunittools
 from psychopy.alerts._alerts import alert
 
 
-class TestWin:
+class TestWin(object):
     """
     Creates a false window with necessary attributes for converting component
     Parameters to pixels.
@@ -257,22 +256,7 @@ def testDisabled(component):
         return
 
     if component.params['disabled'].val:
-        alert(4305, component, strFields={'name': component.params['name']})
-
-def testDollarSyntax(component):
-    """
-    Tests that use of dollar signs in Builder components to denote literal interpretation are used correctly
-
-    Parameters
-    ----------
-    component: Component
-        The component used for testing
-    """
-    valid = {}
-    for (key, param) in component.params.items():
-        if not param.dollarSyntax()[0]:
-            alert(4315, strFields={'component': component, 'param': param})
-    return valid
+        alert(4305, component)
 
 def checkPythonSyntax(component, tab):
     """

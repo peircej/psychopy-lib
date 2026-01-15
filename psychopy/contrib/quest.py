@@ -31,6 +31,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 
+from __future__ import absolute_import, division, print_function
+
+from builtins import input
+from builtins import zip
+from builtins import range
+from builtins import object
 __all__ = ['QuestObject']
 
 import math
@@ -46,7 +52,7 @@ def getinf(x):
     return num.nonzero( num.isinf( num.atleast_1d(x) ) )
 
 
-class QuestObject():
+class QuestObject(object):
 
     """Measure threshold using a Weibull psychometric function.
 
@@ -331,8 +337,8 @@ class QuestObject():
             raise RuntimeError('prior pdf is not finite')
 
         # recompute the pdf from the historical record of trials
-        for intensity, response in zip(self.intensity, self.response):
-            inten = max(-1e10,min(1e10, intensity)) # make intensity finite
+        for intensity, response in zip(self.intensity,self.response):
+            inten = max(-1e10,min(1e10,intensity)) # make intensity finite
             ii = len(self.pdf) + self.i-round((inten-self.tGuess)/self.grain)-1
             if ii[0]<0:
                 ii = ii-ii[0]
@@ -342,7 +348,7 @@ class QuestObject():
             if not num.allclose(ii,iii):
                 raise ValueError('truncation error')
             self.pdf = self.pdf*self.s2[response,iii]
-            if self.normalizePdf and ii % 100 == 0:
+            if self.normalizePdf and k%100==0:
                 self.pdf = self.pdf/num.sum(self.pdf) # avoid underflow; keep the pdf normalized
         if self.normalizePdf:
             self.pdf = self.pdf/num.sum(self.pdf) # avoid underflow; keep the pdf normalized
@@ -423,17 +429,19 @@ def demo():
 
     tActual = None
     while tActual is None:
-        inputStr = input('Specify true threshold of simulated observer: ')
+        sys.stdout.write('Specify true threshold of simulated observer: ')
+        input = input()
         try:
-            tActual = float(inputStr)
+            tActual = float(input)
         except Exception:
             pass
 
     tGuess = None
     while tGuess is None:
-        inputStr = input('Estimate threshold: ')
+        sys.stdout.write('Estimate threshold: ')
+        input = input()
         try:
-            tGuess = float(inputStr)
+            tGuess = float(input)
         except Exception:
             pass
 

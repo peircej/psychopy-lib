@@ -1,15 +1,18 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+#  -*- coding: utf-8 -*-
+
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
+from __future__ import division, absolute_import
 
 import sys
+from future.utils import iteritems
 from .errors import print2err
 
 # pylint: disable=too-many-lines
 
-class Constants:
+class Constants(object):
     UNDEFINED = 0
     _keys = None
     _names = None
@@ -70,7 +73,7 @@ class Constants:
             (a[0] != '_') and (not callable(getattr(cls, a))))])
         cls._keys = list(cls._names.keys())
         cls._names.update(dict([(v, k)
-                                for k, v in cls._names.items()]))
+                                for k, v in iteritems(cls._names)]))
         cls._initialized = True
 
     @classmethod
@@ -158,22 +161,19 @@ class EventConstants(Constants):
     #: Constant for a Basic Eye Tracker Sample Event.
     EYE_SAMPLE = 59
 
-    #: Constant for a GazePoint specific Sample Event.
-    GAZEPOINT_SAMPLE = 60
-
     #: Constant for a Gamepad Event.
     GAMEPAD_STATE_CHANGE = 81
     GAMEPAD_DISCONNECT = 82
 
-    WINTAB_INPUT = 90
-    #: Constant for a WinTab Pen Sample Event.
-    WINTAB_SAMPLE = 91
+    WINTAB_TABLET_INPUT = 90
+    #: Constant for a WinTab Tablet Sample Event.
+    WINTAB_TABLET_SAMPLE = 91
 
-    #: Constant for a WinTab Pen Region Entered Event.
-    WINTAB_ENTER_REGION = 92
+    #: Constant for a WinTab Tablet Region Entered Event.
+    WINTAB_TABLET_ENTER_REGION = 92
 
-    #: Constant for a WinTab Pen Region Leave Event.
-    WINTAB_LEAVE_REGION = 93
+    #: Constant for a WinTab Tablet Region Leave Event.
+    WINTAB_TABLET_LEAVE_REGION = 93
 
     #: Constant for MCU digital input Event.
     DIGITAL_INPUT = 101
@@ -226,8 +226,6 @@ class EventConstants(Constants):
 
 EventConstants.initialize()
 
-EYE_SAMPLE_TYPES = [EventConstants.EYE_SAMPLE, EventConstants.MONOCULAR_EYE_SAMPLE,
-                    EventConstants.BINOCULAR_EYE_SAMPLE, EventConstants.GAZEPOINT_SAMPLE]
 
 class DeviceConstants(Constants):
     """
@@ -269,7 +267,7 @@ class DeviceConstants(Constants):
     GAMEPAD = 80
 
     #: Constant for Tablet Device that uses WinTab DLL.
-    WINTAB = 90
+    WINTABTABLET = 90
 
     #: Constant for a MCU Device.
     MCU = 100

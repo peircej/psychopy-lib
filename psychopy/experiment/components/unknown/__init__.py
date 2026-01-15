@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pathlib import Path
+from __future__ import absolute_import, print_function
+
+from os import path
 from psychopy.experiment.components import BaseComponent, Param, _translate
+from psychopy import prefs
+
+# the absolute path to the folder containing this path
+thisFolder = path.abspath(path.dirname(__file__))
+iconFile = path.join(thisFolder, 'unknown.png')
+tooltip = _translate('Unknown: A component that is not known by the current '
+                     'installed version of PsychoPy\n(most likely from the '
+                     'future)')
+
+# only use _localized values for label values, nothing functional:
+_localized = {'name': _translate('Name')}
 
 
 class UnknownComponent(BaseComponent):
@@ -12,30 +25,20 @@ class UnknownComponent(BaseComponent):
     script-outputs. It should have nothing but a name - other params will be
     added by the loader
     """
-    targets = ['PsychoPy']
 
-    categories = ['Other']
-    targets = ['PsychoPy']
-    iconFile = Path(__file__).parent / 'unknown.png'
-    tooltip = _translate('Unknown: A component that is not known by the current '
-                         'installed version of PsychoPy\n(most likely from the '
-                         'future)')
-    # hide from the Components panel
-    hidden = True
-
-    def __init__(self, exp, parentName, name='', compType="UnknownComponent"):
+    def __init__(self, exp, parentName, name=''):
+        self.type = 'Unknown'
         self.exp = exp  # so we can access the experiment if necess
         self.parentName = parentName  # to access the routine too if needed
         self.params = {}
         self.depends = []
-        super(UnknownComponent, self).__init__(exp, parentName, name=name)
-        self.type = compType
-
-    @property
-    def _xml(self):
-        # make XML node with tag from self.type rather than class name
-        return self.makeXmlNode(self.type)
-
+        _hint = _translate("Name of this component (alpha-numeric or _, "
+                           "no spaces)")
+        self.params['name'] = Param(name, valType='code',
+                                    hint=_hint,
+                                    label=_localized['name'])
+        self.order = ['name']  # name first, then timing, then others
+        super(UnknownComponent, self).__init__(exp, parentName)
     # make sure nothing gets written into experiment for an unknown object
     # class!
 
@@ -46,20 +49,7 @@ class UnknownComponent(BaseComponent):
         pass
 
     def writeInitCode(self, buff):
-        code = (
-            "\n"
-            "# Unknown component ignored: %(name)s\n"
-            "\n"
-        )
-        buff.writeIndentedLines(code % self.params)
-
-    def writeInitCodeJS(self, buff):
-        code = (
-            "\n"
-            "// Unknown component ignored: %(name)s\n"
-            "\n"
-        )
-        buff.writeIndentedLines(code % self.params)
+        pass
 
     def writeFrameCode(self, buff):
         pass

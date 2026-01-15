@@ -2,15 +2,30 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
-from pathlib import Path
+from __future__ import absolute_import, print_function
+from builtins import super  # provides Py3-style super() using python-future
+
+from os import path
 from psychopy.experiment.components import BaseComponent, Param, _translate
 from psychopy.experiment import valid_var_re
-from psychopy.experiment import CodeGenerationException, valid_var_re
 import re
 
+# the absolute path to the folder containing this path
+thisFolder = path.abspath(path.dirname(__file__))
+iconFile = path.join(thisFolder, 'joystick.png')
+tooltip = _translate('Joystick: query joystick position and buttons')
+
+# only use _localized values for label values, nothing functional:
+_localized = {'saveJoystickState': _translate('Save joystick state'),
+              'forceEndRoutineOnPress': _translate('End Routine on press'),
+              'timeRelativeTo': _translate('Time relative to'),
+              'Clickable stimuli': _translate('Clickable stimuli'),
+              'Store params for clicked': _translate('Store params for clicked'),
+              'deviceNumber': _translate('Device number'),
+              'allowedButtons': _translate('Allowed Buttons')}
 
 class JoystickComponent(BaseComponent):
     """An event class for checking the joystick location and buttons
@@ -18,8 +33,6 @@ class JoystickComponent(BaseComponent):
     """
     categories = ['Responses']
     targets = ['PsychoPy']
-    iconFile = Path(__file__).parent / 'joystick.png'
-    tooltip = _translate('Joystick: query joystick position and buttons')
 
     def __init__(self, exp, parentName, name='joystick',
                  startType='time (s)', startVal=0.0,
@@ -34,56 +47,57 @@ class JoystickComponent(BaseComponent):
             startEstim=startEstim, durationEstim=durationEstim)
 
         self.type = 'Joystick'
-        self.url = "https://www.psychopy.org/builder/components/joystick.html"
+        self.url = "http://www.psychopy.org/builder/components/joystick.html"
         self.exp.requirePsychopyLibs(['event'])
         self.categories = ['Inputs']
 
-        self.order += ['forceEndRoutine',  # Basic tab
-                       'saveJoystickState', 'timeRelativeTo', 'clickable', 'saveParamsClickable', 'allowedButtons',  # Data tab
-                       'deviceNumber',  # Hardware tab
-                       ]
+        self.order = [
+            'forceEndRoutineOnPress',
+            'saveJoystickState', 'timeRelativeTo',
+            'clickable', 'saveParamsClickable', 'deviceNumber', 'allowedButtons']
+
         # params
         msg = _translate(
             "How often should the joystick state (x,y,buttons) be stored? "
             "On every video frame, every click or just at the end of the "
             "Routine?")
         self.params['saveJoystickState'] = Param(
-            save, valType='str', inputType="choice", categ='Data',
+            save, valType='str',
             allowedVals=['final', 'on click', 'every frame', 'never'],
-            hint=msg, direct=False,
-            label=_translate("Save joystick state"))
+            hint=msg,
+            label=_localized['saveJoystickState'])
 
-        msg = _translate("Should a button press force the end of the Routine"
+        msg = _translate("Should a button press force the end of the routine"
                          " (e.g end the trial)?")
         if forceEndRoutineOnPress is True:
             forceEndRoutineOnPress = 'any click'
         elif forceEndRoutineOnPress is False:
             forceEndRoutineOnPress = 'never'
         self.params['forceEndRoutineOnPress'] = Param(
-            forceEndRoutineOnPress, valType='str', inputType="choice", categ='Basic',
+            forceEndRoutineOnPress, valType='str',
             allowedVals=['never', 'any click', 'valid click'],
             updates='constant',
-            hint=msg, direct=False,
-            label=_translate("End Routine on press"))
+            hint=msg,
+            label=_localized['forceEndRoutineOnPress'])
 
-        msg = _translate("What should the values of joystick.time be "
+        msg = _translate("What should the values of joystick.time should be "
                          "relative to?")
         self.params['timeRelativeTo'] = Param(
-            timeRelativeTo, valType='str', inputType="choice", categ='Data',
+            timeRelativeTo, valType='str',
             allowedVals=['joystick onset', 'experiment', 'routine'],
-            updates='constant', direct=False,
+            updates='constant',
             hint=msg,
-            label=_translate("Time relative to"))
+            label=_localized['timeRelativeTo'])
 
         msg = _translate('A comma-separated list of your stimulus names that '
                          'can be "clicked" by the participant. '
                          'e.g. target, foil'
                          )
         self.params['clickable'] = Param(
-            '', valType='list', inputType="single", categ='Data',
+            '', valType='code',
             updates='constant',
             hint=msg,
-            label=_translate("Clickable stimuli"))
+            label=_localized['Clickable stimuli'])
 
         msg = _translate('The params (e.g. name, text), for which you want '
                          'to store the current value, for the stimulus that was'
@@ -91,28 +105,28 @@ class JoystickComponent(BaseComponent):
                          'clickable objects have all these params.'
                          )
         self.params['saveParamsClickable'] = Param(
-            'name,', valType='list', inputType="single", categ='Data',
+            'name,', valType='code',
             updates='constant', allowedUpdates=[],
-            hint=msg, direct=False,
-            label=_translate("Store params for clicked"))
+            hint=msg,
+            label=_localized['Store params for clicked'])
 
         msg = _translate('Device number, if you have multiple devices which'
                          ' one do you want (0, 1, 2...)')
 
         self.params['deviceNumber'] = Param(
-            deviceNumber, valType='int', inputType="single", allowedTypes=[], categ="Device",
+            deviceNumber, valType='code', allowedTypes=[],
             updates='constant', allowedUpdates=[],
             hint=msg,
-            label=_translate("Device number"))
+            label=_localized['deviceNumber'], categ='Advanced')
 
         msg = _translate('Buttons to be read (blank for any) numbers separated by '
                          'commas')
 
         self.params['allowedButtons'] = Param(
-            allowedButtons, valType='list', inputType="single", allowedTypes=[], categ='Data',
+            allowedButtons, valType='code', allowedTypes=[],
             updates='constant', allowedUpdates=[],
             hint=msg,
-            label=_translate("Allowed buttons"))
+            label=_localized['allowedButtons'], categ='Advanced')
 
     @property
     def _clickableParamsList(self):
@@ -365,19 +379,21 @@ class JoystickComponent(BaseComponent):
         buff.writeIndented("# *%s* updates\n" % self.params['name'])
 
         # writes an if statement to determine whether to draw etc
-        indented = self.writeStartTestCode(buff)
-        if indented:
-            code = ("{name}.status = STARTED\n")
-            if self.params['timeRelativeTo'].val.lower() == 'joystick onset':
-                code += "{name}.joystickClock.reset()\n"
-            buff.writeIndentedLines(code.format(**self.params))
+        self.writeStartTestCode(buff)
+        code = ("{name}.status = STARTED\n")
+        if self.params['timeRelativeTo'].val.lower() == 'joystick onset':
+            code += "{name}.joystickClock.reset()\n"
+        buff.writeIndentedLines(code.format(**self.params))
         # to get out of the if statement
-        buff.setIndentLevel(-indented, relative=True)
+        buff.setIndentLevel(-1, relative=True)
 
         # test for stop (only if there was some setting for duration or stop)
-        indented = self.writeStopTestCode(buff)
-        # to get out of the if statement
-        buff.setIndentLevel(-indented, relative=True)
+        if self.params['stopVal'].val not in ['', None, -1, 'None']:
+            # writes an if statement to determine whether to draw etc
+            self.writeStopTestCode(buff)
+            buff.writeIndented("%(name)s.status = FINISHED\n" % self.params)
+            # to get out of the if statement
+            buff.setIndentLevel(-2, relative=True)
 
         # if STARTED and not FINISHED!
         code = ("if %(name)s.status == STARTED:  "
@@ -428,7 +444,7 @@ class JoystickComponent(BaseComponent):
                     #"print({name}.pressedButtons)\n"
                     #"print({name}.newPressedButtons)\n"
                     "[logging.data(\"joystick_{{}}_button: {{}}, pos=({{:1.4f}},{{:1.4f}})\".format("
-                    "{name}.device_number, i, {name}.getX(), {name}.getY())) for i in {name}.pressedButtons]\n"
+                    "{name}.device_number, i, {name}.getX(), {name}.getY()) for i in {name}.pressedButtons]\n"
             )
             buff.writeIndentedLines(code.format(**self.params))
 
@@ -570,3 +586,6 @@ class JoystickComponent(BaseComponent):
 
         # get parent to write code too (e.g. store onset/offset times)
         super().writeRoutineEndCode(buff)
+
+        if currLoop.params['name'].val == self.exp._expHandler.name:
+            buff.writeIndented("%s.nextEntry()\n" % self.exp._expHandler.name)

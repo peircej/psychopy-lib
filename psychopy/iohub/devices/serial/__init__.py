@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
 import serial
 import sys
@@ -11,6 +11,8 @@ from .. import Device, DeviceEvent, Computer
 from ...errors import print2err, printExceptionDetailsToStdErr
 from ...constants import DeviceConstants, EventConstants
 getTime = Computer.getTime
+
+PY3 = sys.version_info.major >= 3
 
 
 class Serial(Device):
@@ -303,7 +305,8 @@ class Serial(Device):
 
     def read(self):
         returned = self._serial.read(self._serial.inWaiting())
-        returned = returned.decode('utf-8')
+        if PY3:
+            returned = returned.decode('utf-8')
         return returned
 		
     def closeSerial(self):

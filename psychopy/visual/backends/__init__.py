@@ -2,18 +2,27 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
 """Backends provide the window creation and flipping commands.
 """
 
-import psychopy.plugins as plugins
+from __future__ import absolute_import, print_function
+
+from psychopy import logging
+# import psychopy.plugins as plugins
 from ._base import BaseBackend
 
-# Alias plugins.winTypes here, such that any plugins referencing visual.winTypes
-# will also update the matching dict in plugins
-winTypes = plugins._winTypes
+# Keep track of currently installed window backends. When a window is loaded,
+# its `winType` is looked up here and the matching backend is loaded. Plugins
+# which define entry points into this module will update `winTypes` if they
+# define subclasses of `BaseBackend` that have valid names.
+winTypes = {
+    'pyglet': '.pygletbackend.PygletBackend',
+    'glfw': '.glfwbackend.GLFWBackend',
+    'pygame': '.pygamebackend.PygameBackend'
+}
 
 
 def getBackend(win, *args, **kwargs):
@@ -31,12 +40,11 @@ def getBackend(win, *args, **kwargs):
 
     Returns
     -------
-    :class:`~psychopy.visual.backends._base.BaseBackend`
+    object
         Backend class (subclass of BaseBackend).
 
     """
-    # Look-up the backend module name for `winType`, this is going to be used
-    # when the plugin system goes live. For now, we're leaving it here.
+    # look-up the backend module name for `winType`
     try:
         useBackend = winTypes[win.winType]
     except KeyError:
@@ -44,8 +52,19 @@ def getBackend(win, *args, **kwargs):
             "User requested Window with winType='{}' but there is no backend "
             "definition to match that `winType`.".format(win.winType))
 
-    # this loads the backend dynamically from the FQN stored in `winTypes`
-    Backend = plugins.resolveObjectFromName(useBackend, __name__)
+    # resolve and get the object the fqn points to
+    # Backend = plugins.resolveObjectFromName(useBackend, __name__)
+
+    if win.winType == 'pyglet':
+        from .pygletbackend import PygletBackend as Backend
+    elif win.winType == 'glfw':
+        from .glfwbackend import GLFWBackend as Backend
+    elif win.winType == 'pygame':
+        from .pygamebackend import PygameBackend as Backend
+    else:
+        raise AttributeError("User requested Window with winType='{}' but "
+                             "there is no backend definition to match that "
+                             "winType.".format(win.winType))
 
     # Check if Backend is valid subclass of `BaseBackend`. If not, it should not
     # be used as a backend.
@@ -53,25 +72,3 @@ def getBackend(win, *args, **kwargs):
         raise TypeError("Requested backend is not subclass of `BaseBackend`.")
 
     return Backend(win, *args, **kwargs)
-
-
-def getAvailableWinTypes():
-    """Get a list of available window backends.
-
-    This will also list backends provided by plugins if they have been loaded
-    prior to calling this function.
-
-    Returns
-    -------
-    list
-        List of possible values (`str`) to pass to the `winType` argument of
-        `~:class:psychopy.visual.Window` .
-
-    """
-    global winTypes
-    return list(winTypes.keys())  # copy
-
-
-if __name__ == "__main__":
-    pass
-

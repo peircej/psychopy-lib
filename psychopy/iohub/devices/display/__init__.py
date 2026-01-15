@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+﻿# -*- coding: utf-8 -*-
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
 
 import sys
 from .. import Device, Computer
+from ... import _ispkg
 from ...constants import DeviceConstants
 from ...errors import print2err, printExceptionDetailsToStdErr
 import pyglet
@@ -21,11 +22,12 @@ class Display(Device):
 
     """
     _coord_type_mappings = dict(pix='pix', pixel='pix', pixels='pix',
-                                deg='deg', degree='deg', degrees='deg', cm='cm',
+                                deg='deg', degree='deg', degrees='deg',
+                                cm='cm',  # mm='mm', inch='inch', inches='inch',
                                 norm='norm', normalize='norm', normalized='norm',
-                                height='height'
+                                # perc='perc',percent='perc', percentage='perc'
                                 )
-    _supported_origin_types = ['center', ]
+    _supported_origin_types = ['center', ]  # ,'top_left','bottom_left']
 
     _enabled_display_instances = []
     _computer_display_runtime_info_list = None
@@ -50,12 +52,8 @@ class Display(Device):
             self._xwindow = None
 
         if Display._computer_display_runtime_info_list is None:
-            Display._computer_display_runtime_info_list = Display._createAllRuntimeInfoDicts()
-
-        if self.getIndex() >= self.getDisplayCount():
-            # Requested Display index is invalid. Use Display / Screen index 0.
-            print2err("WARNING: Requested display index does not exist. Using display index 0.")
-            self.device_number = 0
+            Display._computer_display_runtime_info_list =\
+                Display._createAllRuntimeInfoDicts()
 
         self._addRuntimeInfoToDisplayConfig()
 
@@ -99,15 +97,6 @@ class Display(Device):
 
         """
         return len(cls._computer_display_runtime_info_list)
-
-    @classmethod
-    def getAllDisplayBounds(cls):
-        """
-        Returns pixel display bounds (l,t r,b) for each detected display.
-        
-        :return: list of (l,t r,b) tuples
-        """
-        return [d.get('bounds') for d in cls._computer_display_runtime_info_list]
 
     def getRuntimeInfo(self, display_index = None):
         """
@@ -160,21 +149,6 @@ class Display(Device):
         """
         return self.getConfiguration()['reporting_unit_type']
 
-    def getColorSpace(self):
-        """
-        Returns the color space to use for PsychoPy Windows.
-
-        Please refer to the psychoPy documentation for a detailed description of
-        supported color spaces.
-
-        Args:
-            None
-
-        Returns:
-            str: Display color space
-        """
-        return self.getConfiguration()['color_space']
-
     def getPixelsPerDegree(self):
         """Returns the Display's horizontal and vertical pixels per degree This
         is currently calculated using the PsychoPy built in function. Therefore
@@ -183,7 +157,7 @@ class Display(Device):
 
         The physical characteristics of the Display and the Participants viewing distance
         will either be based on the ioHub settings specified, or based on the information
-        saved in the PsychoPy Monitor Configuration file that can be optionally
+        saved in the PsychoPy Monitor Configuartion file that can be optionally
         given to the Display Device before it is instantiated.
 
         Args:
@@ -228,7 +202,7 @@ class Display(Device):
 
     def getBounds(self):
         """Get the Display's pixel bounds; representing the left,top,right,and
-        bottom edge of the display screen in native pixel units.
+        bottom edge of the the display screen in native pixel units.
 
         .. note:: (left, top, right, bottom) bounds will 'not' always be (0, 0, pixel_width, pixel_height). If a multiple display setup is being used, (left, top, right, bottom) indicates the actual absolute pixel bounds assigned to that monitor by the OS. It can be assumed that right = left + display_pixel_width and bottom =  top + display_pixel_height
 
@@ -243,7 +217,8 @@ class Display(Device):
 
     def getCoordBounds(self):
         """Get the Display's left, top, right, and bottom border bounds,
-        specified in the coordinate space returned by Display.getCoordinateType()
+        specified in the coordinate space returned by
+        Display.getCoordinateType()
 
         Args:
             None
@@ -276,7 +251,7 @@ class Display(Device):
     def getPhysicalDimensions(self):
         """Returns the Display's physical screen area ( width,  height ) as
         specified in the ioHub Display devices configuration settings or by a
-        PsychoPy Monitor Configuration file.
+        PsychoPy Monitor Configuartion file.
 
         Args:
             None
@@ -498,10 +473,7 @@ class Display(Device):
                 runtime_info['bounds'] = (x, y, x + w, y + h)
                 runtime_info['primary'] = runtime_info['bounds'] == dbounds
                 if mode:
-                    rate = mode.rate
-                    if rate == 0.0:
-                        rate = 60
-                    runtime_info['retrace_rate'] = rate
+                    runtime_info['retrace_rate'] = mode.rate
                     runtime_info['bits_per_pixel'] = mode.depth
                     if mode and mode.width > 0 and mode.height > 0:
                         runtime_info['pixel_resolution'] = mode.width, mode.height
@@ -526,7 +498,8 @@ class Display(Device):
             runtime_info = self._getRuntimeInfoByIndex(self.device_number)
             display_config['runtime_info'] = runtime_info
 
-            self._createPsychopyCalibrationFile()
+            if _ispkg is False:
+                self._createPsychopyCalibrationFile()
 
             pixel_width = runtime_info['pixel_width']
             pixel_height = runtime_info['pixel_height']
@@ -565,7 +538,7 @@ class Display(Device):
             phys_width,
             phys_height):
         '''
-        For the screen index the  full screen psychopy window is created
+        For the the screen index the  full screen psychopy window is created
         over, this function maps from psychopy coord space (pix, norm, deg,
         all with center = 0,0) to system pix position.
 
@@ -575,11 +548,9 @@ class Display(Device):
         coord_type = self.getCoordinateType()
         if coord_type in Display._coord_type_mappings:
             coord_type = Display._coord_type_mappings[coord_type]
-        elif coord_type is None:
-            print2err(' *** iohub warning: Display / Monitor unit type has not been set.')
-            return
         else:
-            print2err(' *** iohub error: Unknown Display / Monitor coordinate type: {0}'.format(coord_type))
+            print2err(
+                ' *** Display device error: Unknown coordinate type: {0}'.format(coord_type))
             return
 
         self._pix2coord = None
@@ -596,7 +567,7 @@ class Display(Device):
             return (x - w / 2), -y + h / 2
 
         def psychopy2displayPix(cx, cy):
-            return l + (cx + w / 2), b - (cy + h / 2)
+            return l + (cx + w / 2), t + (cy + h / 2)
 
         if coord_type == 'pix':
             def pix2coord(self, x, y, display_index=None):
@@ -650,27 +621,6 @@ class Display(Device):
                         return cx, cy
                     self._coord2pix = cmcoord2pix
 
-                elif coord_type == 'height':
-                    def pix2heightcoord(self, x, y, display_index=None):
-                        if display_index == self.getIndex():
-                            ppx, ppy = display2psychopyPix(x, y)
-                            return ppx / h, ppy / h
-                        return x, y
-                    self._pix2coord = pix2heightcoord
-
-                    def height2pix(self, x, y, display_index=None):
-                        if display_index == self.getIndex():
-                            if False: #TODO: Deal with win.useRetina when we don't have a win.
-                                x = x * h / 2.0
-                                y = y * h / 2.0
-                            else:
-                                x = x * h
-                                y = y * h
-                            return psychopy2displayPix(x, y)
-
-                        return x, y
-                    self._coord2pix = height2pix
-
                 elif coord_type == 'deg':
                     def pix2degcoord(self, x, y, display_index=None):
                         if display_index == self.getIndex():
@@ -689,10 +639,9 @@ class Display(Device):
                                     degy, self._psychopy_monitor))
                         return degx, degy
                     self._coord2pix = degcoord2pix
-            except:
-                print2err('Error during _calculateCoordMappingFunctions')
-                printExceptionDetailsToStdErr()
-
+            except ImportError:
+                print2err(
+                    'WARNING: iohub.devices.Display: cm and deg coord types only supported with psychopy.')
 
     def _createPsychopyCalibrationFile(self):
         display_config = self.getConfiguration()

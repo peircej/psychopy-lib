@@ -9,37 +9,13 @@ import pytest
 
 
 @pytest.mark.mathtools
-def test_rotations():
-    """Test rotations with quaternions and matrices. Checks if quaternions and
-    matrices constructed with the same axes and angles give the same rotations
-    to sets of random points.
-
-    Tests `quatFromAxisAngle`, `rotationMatrix`, `applyMatrix` and `applyQuat`.
-
-    """
+def test_quatFromAxisAngle():
+    """Test creating a quaternion from `axis` and `angle`."""
     # identity check
     axis = [0., 0., -1.]
     angle = 0.0
     q = quatFromAxisAngle(axis, angle, degrees=True)
     assert np.allclose(q, np.asarray([0., 0., 0., 1.]))
-
-    q = rotationMatrix(angle, axis)
-    assert np.allclose(q, np.identity(4))
-
-    # full check
-    np.random.seed(123456)
-    N = 1000
-    axes = np.random.uniform(-1.0, 1.0, (N, 3))  # random rotation axes
-    axes = normalize(axes, out=axes)
-    angles = np.random.uniform(-180.0, 180.0, (N,))  # random angles
-    points = np.random.uniform(-100.0, 100.0, (N, 3))  # random points to rotate
-
-    for i in range(N):
-        axis = axes[i, :]
-        angle = angles[i]
-        rotMat = rotationMatrix(angle, axis)[:3, :3]  # rotation sub-matrix only
-        rotQuat = quatFromAxisAngle(axis, angle, degrees=True)
-        assert np.allclose(applyMatrix(rotMat, points), applyQuat(rotQuat, points))
 
 
 @pytest.mark.mathtools
@@ -142,41 +118,9 @@ def test_quatToMatrix():
         q = matrixToQuat(rotationMatrix(angles[i], normalize(axes[i, :])))
         m = quatToMatrix(quatFromAxisAngle(normalize(axes[i, :]), angles[i]))
 
-        # The returned quaternion might not be the same, but will result in the
+        # The returned quaternion might no be the same, but will result in the
         # same rotation.
         assert np.allclose(applyMatrix(m, vectors[i]), applyQuat(q, vectors[i]))
-
-
-@pytest.mark.mathtools
-def test_reflect():
-    exemplars = [
-        # 1d array float64
-        {'v': np.array([1, 2, 3, 4]),
-         'n': np.array([5, 6, 7, 8]),
-         'dtype': np.float64,
-         'ans': np.array([-699., -838., -977., -1116.]),
-         },
-        # 2d array float64
-        {'v': np.array([[1, 2], [3, 4]]),
-         'n': np.array([[5, 6], [7, 8]]),
-         'dtype': np.float64,
-         'ans': np.array([[-169., -202.], [-739., -844.]]),
-         },
-    ]
-    tykes = [
-        # no dtype
-        {'v': np.array([1, 2, 3, 4]),
-         'n': np.array([5, 6, 7, 8]),
-         'dtype': None,
-         'ans': np.array([-699., -838., -977., -1116.]),
-         },
-    ]
-
-    for case in exemplars + tykes:
-        assert np.array_equal(
-            case['ans'],
-            reflect(v=case['v'], n=case['n'], dtype=case['dtype'])
-        )
 
 
 @pytest.mark.mathtools
@@ -255,46 +199,6 @@ def test_dot():
 
 
 @pytest.mark.mathtools
-def test_dist():
-    """Test the distance function in mathtools. This also test the `normalize`
-    function to ensure all vectors have a length of 1.
-
-    """
-    np.random.seed(123456)
-    N = 1000
-    # check Nx2 and Nx3 cases
-    for nCol in range(2, 4):
-        vectors = np.random.uniform(-1.0, 1.0, (N, nCol,))
-        vectors = normalize(vectors, out=vectors)  # normalize
-
-        # point to check distance from
-        point = np.zeros((nCol,))
-
-        # calculate 1 to many
-        distOneToMany = distance(point, vectors)
-        # check if distances are all one
-        assert np.allclose(distOneToMany, 1.0)
-        # calculate many to 1
-        distManyToOne = distance(point, vectors)
-        # check if results are the same
-        assert np.allclose(distManyToOne, distOneToMany)
-
-        # check if output array is written to correctly
-        out = np.zeros((N,))
-        idToCheck = id(out)
-        out = distance(vectors, point, out)
-        # check result
-        assert np.allclose(out, distManyToOne)
-        # check same object
-        assert id(out) == idToCheck
-
-    # test row-by-row
-    vectors = normalize(np.random.uniform(-1.0, 1.0, (N, 3,)))
-    distRowByRow = distance(np.zeros_like(vectors), vectors)
-    assert np.allclose(distRowByRow, 1.0)
-
-
-@pytest.mark.mathtools
 def test_cross():
     """Test the cross-product function `cross()`.
 
@@ -369,149 +273,6 @@ def test_cross():
 
 
 @pytest.mark.mathtools
-def test_project():
-    exemplars = [
-        # 1d array float64
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         'dtype': np.float64,
-         'ans': np.array([2.01149425, 2.4137931, 2.81609195, 3.2183908]),
-         },
-        # 2d array float64
-        {'v0': np.array([[1, 2], [3, 4]]),
-         'v1': np.array([[5, 6], [7, 8]]),
-         'dtype': np.float64,
-         'ans': np.array([[10.88313479, 13.05976175], [34.90074422, 39.88656482]]),
-         },
-    ]
-    tykes = [
-        # no dtype
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         'dtype': None,
-         'ans': np.array([2.01149425, 2.4137931, 2.81609195, 3.2183908]),
-         },
-        # These should work, but don't
-        # # 2d on 1d
-        # {'v0': np.array([[1, 2], [3, 4]]),
-        #  'v1': np.array([5, 6, 7, 8]),
-        #  'dtype': np.float64,
-        #  'ans': np.array([[10.88313479, 13.05976175], [34.90074422, 39.88656482]]),
-        #  },
-        # #1d on 2d
-        # {'v0': np.array([1, 2, 3, 4]),
-        #  'v1': np.array([[5, 6], [7, 8]]),
-        #  'dtype': np.float64,
-        #  'ans': np.array([[10.88313479, 13.05976175], [34.90074422, 39.88656482]]),
-        #  },
-    ]
-
-    for case in exemplars + tykes:
-        assert np.allclose(
-            case['ans'],
-            project(v0=case['v0'], v1=case['v1'], dtype=case['dtype'])
-        )
-
-
-@pytest.mark.mathtools
-def test_lerp():
-    exemplars = [
-        # 1d array float64 t=1
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         't': 1,
-         'dtype': np.float64,
-         'ans': np.array([5., 6., 7., 8.]),
-         },
-        # 2d array float64 t=1
-        {'v0': np.array([[1, 2], [3, 4]]),
-         'v1': np.array([[5, 6], [7, 8]]),
-         't': 1,
-         'dtype': np.float64,
-         'ans': np.array([[5., 6.], [7., 8.]]),
-         },
-        # 1d array float64 t=0.5
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         't': 0.5,
-         'dtype': np.float64,
-         'ans': np.array([3., 4., 5., 6.]),
-         },
-        # 2d array float64 t=0.5
-        {'v0': np.array([[1, 2], [3, 4]]),
-         'v1': np.array([[5, 6], [7, 8]]),
-         't': 0.5,
-         'dtype': np.float64,
-         'ans': np.array([[3., 4.], [5., 6.]]),
-         },
-        # 1d array float64 t=0
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         't': 0,
-         'dtype': np.float64,
-         'ans': np.array([1., 2., 3., 4.]),
-         },
-        # 2d array float64 t=0
-        {'v0': np.array([[1, 2], [3, 4]]),
-         'v1': np.array([[5, 6], [7, 8]]),
-         't': 0,
-         'dtype': np.float64,
-         'ans': np.array([[1., 2.], [3., 4.]]),
-         },
-    ]
-    tykes = [
-        # no dtype
-        {'v0': np.array([1, 2, 3, 4]),
-         'v1': np.array([5, 6, 7, 8]),
-         't': 1,
-         'dtype': None,
-         'ans': np.array([5., 6., 7., 8.]),
-         },
-    ]
-
-    for case in exemplars + tykes:
-        assert np.allclose(
-            case['ans'],
-            lerp(v0=case['v0'], v1=case['v1'], t=case['t'], dtype=case['dtype'])
-        )
-
-
-@pytest.mark.mathtools
-def test_perp():
-    exemplars = [
-        # 3d array float64 norm
-        {'v0': np.array([[1, 2, 3], [4, 5, 6]]),
-         'v1': np.array([[6, 5, 4], [3, 2, 1]]),
-         'norm': True,
-         'dtype': np.float64,
-         'ans': np.array([[-0.72914182, -0.56073762, -0.39233343], [-0.87763952, -0.47409942, -0.07055933]]),
-         },
-        # 3d array float64 not norm
-        {'v0': np.array([[1, 2, 3], [4, 5, 6]]),
-         'v1': np.array([[6, 5, 4], [3, 2, 1]]),
-         'norm': False,
-         'dtype': np.float64,
-         'ans': np.array([[-18.14537685, -13.9544807, -9.76358456], [-18.44994432, -9.96662955, -1.48331477]]),
-         },
-    ]
-    tykes = [
-        # no dtype
-        {'v0': np.array([[1, 2, 3], [4, 5, 6]]),
-         'v1': np.array([[6, 5, 4], [3, 2, 1]]),
-         'norm': True,
-         'dtype': None,
-         'ans': np.array([[-0.72914182, -0.56073762, -0.39233343], [-0.87763952, -0.47409942, -0.07055933]]),
-         },
-    ]
-
-    for case in exemplars + tykes:
-        np.allclose(
-            case['ans'],
-            perp(v=case['v0'], n=case['v1'], norm=case['norm'], dtype=case['dtype'])
-        )
-
-
-@pytest.mark.mathtools
 def test_orthogonalize():
     """Check the `orthogonalize()` function. This function nudges a vector to
     be perpendicular with another (usually a normal). All orthogonalized vectors
@@ -570,7 +331,7 @@ def test_invertMatrix():
     # check homogeneous inverse
     ident = np.identity(4)
     for i in range(N):
-        r = rotationMatrix(angles[i].item(), axes[i, :])
+        r = rotationMatrix(angles[i], axes[i, :])
 
         assert isOrthogonal(r)
 
@@ -593,7 +354,7 @@ def test_invertMatrix():
     inv = np.zeros((4, 4))
     ident = np.identity(4)
     for i in range(N):
-        rotationMatrix(angles[i].item(), axes[i, :], out=rout)
+        rotationMatrix(angles[i], axes[i, :], out=rout)
 
         assert isOrthogonal(rout)
 
@@ -615,23 +376,23 @@ def test_invertMatrix():
     eyeOffsets = np.random.uniform(-0.1, 0.1, (N,))
 
     for i in range(N):
-        scrWidth = scrDims[i, 0].item()
-        scrAspect = scrWidth / scrDims[i, 1].item()
-        viewDist = viewDists[i].item()
+        scrWidth = scrDims[i, 0]
+        scrAspect = scrDims[i, 0] / scrDims[i, 1]
+        viewDist = viewDists[i]
 
         # nearClip some distance between screen and eye
-        nearClip = np.random.uniform(0.1, viewDist, (1,)).item()
+        nearClip = np.random.uniform(0.1, viewDist, (1,))
 
         # nearClip some distance beyond screen
         fcMin = viewDist + nearClip
-        farClip = np.random.uniform(fcMin, 1000.0, (1,)).item()
+        farClip = np.random.uniform(fcMin, 1000.0, (1,))
 
         # get projection matrix
         frustum = computeFrustum(
             scrWidth,
             scrAspect,
             viewDist,
-            eyeOffset=eyeOffsets[i].item(),
+            eyeOffset=eyeOffsets[i],
             nearClip=nearClip,
             farClip=farClip)
 
@@ -639,7 +400,7 @@ def test_invertMatrix():
         assert not isAffine(proj)
 
         # create affine view matrix
-        r = rotationMatrix(angles[i].item(), axes[i, :])
+        r = rotationMatrix(angles[i], axes[i, :])
         assert isOrthogonal(r)
 
         t = translationMatrix(trans[i, :])

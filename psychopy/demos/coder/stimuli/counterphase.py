@@ -11,6 +11,9 @@ in opposite directions.
 This script takes the first approach as a test of how fast
 contrast textures are being rewritten to the graphics card
 """
+
+from __future__ import division
+
 from psychopy import core, visual, event
 from numpy import sin, pi
 

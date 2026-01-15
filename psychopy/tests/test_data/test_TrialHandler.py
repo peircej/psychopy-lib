@@ -1,4 +1,9 @@
 """Tests for psychopy.data.DataHandler"""
+from __future__ import print_function
+
+from builtins import str
+from builtins import range
+from builtins import object
 import os, glob
 from os.path import join as pjoin
 import shutil
@@ -16,7 +21,7 @@ thisPath = os.path.split(__file__)[0]
 fixturesPath = os.path.join(thisPath, '..', 'data')
 
 
-class TestTrialHandler():
+class TestTrialHandler(object):
     def setup_class(self):
         self.temp_dir = mkdtemp(prefix='psychopy-tests-testdata')
         self.rootName = 'test_data_file'
@@ -178,7 +183,7 @@ class TestTrialHandler():
         assert t1 != t2
 
 
-class TestTrialHandlerOutput():
+class TestTrialHandlerOutput(object):
     def setup_class(self):
         self.temp_dir = mkdtemp(prefix='psychopy-tests-testdata')
         self.random_seed = 100

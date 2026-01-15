@@ -2,6 +2,7 @@
 # Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
 
+from __future__ import division
 """
 ioHub Eye Tracker Online Sample Event Parser
 
@@ -130,7 +131,6 @@ Data is filtered once, similar to what a 'normal' filter level would be in the
   eyelink<tm> system. Level = 2 would be similar to the 'extra' filter level
   setting of eyelink<tm>.
 """
-import numpy as np
 from ....constants import EventConstants
 from ....errors import print2err
 from ... import DeviceEvent, eventfilters
@@ -532,12 +532,12 @@ class EyeTrackerEventParser(eventfilters.DeviceEventFilter):
     def _addVelocity(self, prev_event, current_event):
         io_ix = self.io_event_ix
 
-        dx = np.abs(
+        dx = np_abs(
             current_event[
                 io_ix('angle_x')] -
             prev_event[
                 io_ix('angle_x')])
-        dy = np.abs(
+        dy = np_abs(
             current_event[
                 io_ix('angle_y')] -
             prev_event[
@@ -825,7 +825,7 @@ class EyeTrackerEventParser(eventfilters.DeviceEventFilter):
                     'time')] - existing_start_event[self.io_event_ix('time')],
                 xDiff,
                 yDiff,
-                np.rad2deg(np.arctan(yDiff, xDiff)),
+                rad2deg(arctan(yDiff, xDiff)),
                 existing_start_event[gx],
                 existing_start_event[gy],
                 0.0,

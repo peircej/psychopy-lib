@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from builtins import object
 from psychopy import data, logging
 import numpy as np
 import os, glob, shutil
 import io
 from tempfile import mkdtemp
 
-from psychopy.tools.filetools import openOutputFile
-
 logging.console.setLevel(logging.DEBUG)
 
 
-class TestExperimentHandler():
+class TestExperimentHandler(object):
     def setup_class(self):
         self.tmpDir = mkdtemp(prefix='psychopy-tests-testExp')
         self.random_seed = 100
@@ -98,7 +97,7 @@ class TestExperimentHandler():
         # get data file contents:
         with io.open(exp.dataFileName + '.csv', 'r', encoding='utf-8-sig') as f:
             contents = f.read()
-        assert contents == "thisRow.t,notes,mutable,\n,,[1],\n,,[9999],\n"
+        assert contents == "mutable,\n[1],\n[9999],\n"
 
     def test_unicode_conditions(self):
         fileName = self.tmpDir + 'unicode_conds'
@@ -145,25 +144,6 @@ class TestExperimentHandler():
         e2.addLoop(t)
 
         assert e1 == e2
-
-    def test_save_unicode(self):
-        exp = data.ExperimentHandler()
-        # Try to save data to csv
-        for encoding in ['utf-8', 'utf-16']:
-            for asDecimal in range(143859):
-                # Add each unicode character to the data file
-                try:
-                    chr(asDecimal).encode(encoding)
-                except UnicodeEncodeError:
-                    # Skip if not a valid unicode
-                    continue
-                exp.addData("char", chr(asDecimal))
-                exp.nextEntry()
-            try:
-                exp.saveAsWideText(self.tmpDir + '\\unicode_chars.csv', encoding=encoding)
-            except UnicodeEncodeError as err:
-                # If failed, remove and store character which failed
-                raise UnicodeEncodeError(*err.args[:4], "character failing to save to csv")
 
 
 if __name__ == '__main__':

@@ -39,7 +39,7 @@ run tests with:
 %          powerVal -power, so that sequence length is baseVal^powerVal-1
 %          shift    -cyclical shift of the sequence
 %          whichSeq -sequence istantiation to use 
-%          (number of sequences varies with powerVal - see the code)
+%          (numer of sequences varies with powerVal - see the code)
 %
 % (c) Giedrius T. Buracas, SNL-B, Salk Institute
 % Register values are taken from: WDT Davies, System Identification
@@ -50,6 +50,12 @@ run tests with:
 
 
 '''
+
+from __future__ import absolute_import, division, print_function
+
+from builtins import str
+from builtins import map
+from builtins import range
 import sys
 import numpy
 

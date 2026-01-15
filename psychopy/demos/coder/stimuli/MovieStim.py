@@ -4,61 +4,31 @@
 """
 Demo of MovieStim
 
-MovieStim opens a video file and displays it on a window.
-
+Different systems have different sets of codecs.
+avbin (which PsychoPy uses to load movies) seems not to load compressed audio on all systems.
+To create a movie that will play on all systems I would recommend using the format:
+    video: H.264 compressed,
+    audio: Linear PCM
 """
-from psychopy import visual, core, constants
-from psychopy.hardware import keyboard
 
-# window to present the video
-win = visual.Window((800, 600), fullscr=False)
+from __future__ import division
+from __future__ import print_function
 
-# keyboard to listen for keys
-kb = keyboard.Keyboard()
+from psychopy import visual, core, event
 
-# create a new movie stimulus instance
-mov = visual.MovieStim(
-    win,
-    'default.mp4',    # path to video file
-    size=(256, 256),
-    flipVert=False,
-    flipHoriz=False,
-    loop=False,
-    noAudio=False,
-    volume=0.1,
-    autoStart=False)
+win = visual.Window((800, 600))
+mov = visual.MovieStim3(win, 'jwpIntro.mov', size=(320, 240),
+    flipVert=False, flipHoriz=False, loop=False)
+print('orig movie size=%s' % mov.size)
+print('duration=%.2fs' % mov.duration)
+globalClock = core.Clock()
 
-# print some information about the movie
-print('orig movie size={}'.format(mov.frameSize))
-print('orig movie duration={}'.format(mov.duration))
-
-# instructions
-instrText = "`r` Play/Resume\n`p` Pause\n`s` Stop\n`q` Stop and Close"
-instr = visual.TextStim(win, instrText, pos=(0.0, -0.75))
-
-# main loop, exit when the status is finished
-while not mov.isFinished:
-    # draw the movie
+while mov.status != visual.FINISHED:
     mov.draw()
-    # draw the instruction text
-    instr.draw()
-    # flip buffers so they appear on the window
     win.flip()
-
-    # process keyboard input
-    if kb.getKeys('q'):   # quit
+    if event.getKeys():
         break
-    elif kb.getKeys('r'):  # play/start
-        mov.play()
-    elif kb.getKeys('p'):  # pause
-        mov.pause()
-    elif kb.getKeys('s'):  # stop the movie
-        mov.stop()
 
-# stop the movie, this frees resources too
-mov.unload()  # unloads when `mov.status == constants.FINISHED`
-
-# clean up and exit
 win.close()
 core.quit()
 

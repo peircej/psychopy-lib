@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# Part of the PsychoPy library
-# Copyright (C) 2012-2020 iSolver Software Solutions (C) 2021 Open Science Tools Ltd.
+# Part of the psychopy.iohub library.
+# Copyright (C) 2012-2016 iSolver Software Solutions
 # Distributed under the terms of the MIT License.
-import importlib
+from __future__ import division, absolute_import
+
+from past.builtins import xrange
+
 import os
 import sys
-import inspect
 from operator import itemgetter
 from collections import deque, OrderedDict
 
@@ -14,39 +16,40 @@ import gevent
 from gevent.server import DatagramServer
 from gevent import Greenlet
 
-import numpy
-
 try:
     import msgpack_numpy
     msgpack_numpy.patch()
 except ImportError:
     pass
 
+from past.builtins import basestring, unicode
+from psychopy.constants import PY3
+from . import _pkgroot
 from . import IOHUB_DIRECTORY, EXP_SCRIPT_DIRECTORY, _DATA_STORE_AVAILABLE
 from .errors import print2err, printExceptionDetailsToStdErr, ioHubError
 from .net import MAX_PACKET_SIZE
 from .util import convertCamelToSnake, win32MessagePump
 from .util import yload, yLoader
 from .constants import DeviceConstants, EventConstants
-from .devices import DeviceEvent, import_device, importDeviceModule
+from .devices import DeviceEvent, import_device
 from .devices import Computer
 from .devices.deviceConfigValidation import validateDeviceConfiguration
 getTime = Computer.getTime
-syncClock = Computer.syncClock
+
+MAX_PACKET_SIZE = 64 * 1024
 
 # pylint: disable=protected-access
 # pylint: disable=broad-except
 
-def convertByteStrings(rdict):
+def convertByteKeysToStr(rdict):
     if rdict is None or len(rdict)==0:
         return rdict
     result = dict()
-    for k, i in rdict.items(): 
+    for k, i in rdict.items():
         if isinstance(k, bytes):
-            k = k.decode('utf-8')
-        if isinstance(i, bytes):
-            i = i.decode('utf-8')
-        result[k] = i
+            result[k.decode('utf-8')] = i
+        else:
+            result[k] = i
     return result
 
 class udpServer(DatagramServer):
@@ -62,34 +65,17 @@ class udpServer(DatagramServer):
         self.unpacker = msgpack.Unpacker(use_list=True)
         self.unpack = self.unpacker.unpack
         self.feed = self.unpacker.feed
-        self.multipacket_reads = 0
         DatagramServer.__init__(self, address)
 
     def handle(self, request, replyTo):
         if self._running is False:
             return False
-
         self.feed(request)
-
-        if self.multipacket_reads > 0:
-            # Multi packet request handling...
-            self.multipacket_reads -= 1
-            if self.multipacket_reads > 0:
-                # If reading part of multi packet request, just return and wait for next part of request
-                return False
-
         request = self.unpack()
-
-        if request[0] == 'IOHUB_MULTIPACKET_REQUEST':
-            # setup multi packet request read
-            self.multipacket_reads = request[1]
-            return False
-        else:
-            self.multipacket_reads = 0
-
+        # print2err(">> Rx Packet: {}, {}".format(request, replyTo))
         request_type = request.pop(0)
-        if not isinstance(request_type, str):
-            request_type = str(request_type, 'utf-8') # convert bytes to string for compatibility
+        if not isinstance(request_type, unicode):
+            request_type = unicode(request_type, 'utf-8') # convert bytes to string for compatibility
 
         if request_type == 'SYNC_REQ':
             self.sendResponse(['SYNC_REPLY', getTime()], replyTo)
@@ -119,9 +105,10 @@ class udpServer(DatagramServer):
 
             result = None
             try:
-                if isinstance(callable_name, bytes):
-                    callable_name = callable_name.decode('utf-8')
-                result = getattr(self, callable_name)
+                result = getattr(self, unicode(callable_name, 'utf-8'))
+            except TypeError as e:
+                if "decoding str is not supported" in e:
+                    pass
             except Exception:
                 print2err('RPC_ATTRIBUTE_ERROR')
                 printExceptionDetailsToStdErr()
@@ -130,24 +117,15 @@ class udpServer(DatagramServer):
 
             if result and callable(result):
                 funcPtr = result
-                nargs = []
-                if args:
-                    for a in args:
-                        if isinstance(a, bytes):
-                            nargs.append(a.decode('utf-8'))
-                        else:
-                            nargs.append(a)
-                    args = nargs
-                    
                 try:
                     if args is None and kwargs is None:
                         result = funcPtr()
                     elif args and kwargs:
-                        result = funcPtr(*args, **convertByteStrings(kwargs))
+                        result = funcPtr(*args, **convertByteKeysToStr(kwargs))
                     elif args and not kwargs:
                         result = funcPtr(*args)
                     elif not args and kwargs:
-                        result = funcPtr(**convertByteStrings(kwargs))
+                        result = funcPtr(**convertByteKeysToStr(kwargs))
                     edata = ('RPC_RESULT', callable_name, result)
                     self.sendResponse(edata, replyTo)
                     return True
@@ -194,7 +172,7 @@ class udpServer(DatagramServer):
                 class_kwargs = {}
                 if len(request):
                     class_kwargs = request.pop(0)
-                custom_tasks[tasklet_label] = task_cls(**convertByteStrings(class_kwargs))
+                custom_tasks[tasklet_label] = task_cls(**convertByteKeysToStr(class_kwargs))
                 custom_tasks[tasklet_label].start()
             except Exception:
                 print2err(
@@ -238,8 +216,8 @@ class udpServer(DatagramServer):
 
     def handleExperimentDeviceRequest(self, request, replyTo):
         request_type = request.pop(0)
-        if not isinstance(request_type, str):
-            request_type = str(request_type, 'utf-8') # convert bytes to string for compatibility
+        if not isinstance(request_type, unicode):
+            request_type = unicode(request_type, 'utf-8') # convert bytes to string for compatibility
         io_dev_dict = ioServer.deviceDict
         if request_type == 'EVENT_TX':
             exp_events = request.pop(0)
@@ -250,11 +228,11 @@ class udpServer(DatagramServer):
             return True
         elif request_type == 'DEV_RPC':
             dclass = request.pop(0)
-            if not isinstance(dclass, str):
-                dclass = str(dclass, 'utf-8')
+            if not isinstance(dclass, unicode):
+                dclass = unicode(dclass, 'utf-8')
             dmethod = request.pop(0)
-            if not isinstance(dmethod, str):
-                dmethod = str(dmethod, 'utf-8')
+            if not isinstance(dmethod, unicode):
+                dmethod = unicode(dmethod, 'utf-8')
             args = None
             kwargs = None
             if len(request) == 1:
@@ -291,14 +269,13 @@ class udpServer(DatagramServer):
             result = []
             try:
                 if args and kwargs:
-                    result = method(*args, **convertByteStrings(kwargs))
+                    result = method(*args, **convertByteKeysToStr(kwargs))
                 elif args:
                     result = method(*args)
                 elif kwargs:
-                    result = method(**convertByteStrings(kwargs))
+                    result = method(**convertByteKeysToStr(kwargs))
                 else:
                     result = method()
-                #print2err("DEV_RPC_RESULT: ", result)
                 self.sendResponse(('DEV_RPC_RESULT', result), replyTo)
                 return True
             except Exception:
@@ -323,8 +300,8 @@ class udpServer(DatagramServer):
 
         elif request_type == 'GET_DEV_INTERFACE':
             dclass = request.pop(0)
-            if not isinstance(dclass, str):
-                dclass = str(dclass, 'utf-8')
+            if not isinstance(dclass, unicode):
+                dclass = unicode(dclass, 'utf-8')
             data = None
             if dclass in ['EyeTracker', 'DAQ']:
                 for dname, hdevice in ioServer.deviceDict.items():
@@ -376,12 +353,9 @@ class udpServer(DatagramServer):
                 pkt_cnt = int(reply_data_sz // max_pkt_sz) + 1
                 mpr_payload = ('IOHUB_MULTIPACKET_RESPONSE', pkt_cnt)
                 self.sendResponse(mpr_payload, address)
-                gevent.sleep(0.0001)
-                for p in range(pkt_cnt - 1):
+                for p in xrange(pkt_cnt - 1):
                     si = p*max_pkt_sz
                     self.socket.sendto(reply_data[si:si+max_pkt_sz], address)
-                    # macOS hangs if we do not sleep gevent between each msg packet
-                    gevent.sleep(0.0001)
                 si = (p+1)*max_pkt_sz
                 self.socket.sendto(reply_data[si:reply_data_sz], address)
             else:
@@ -420,43 +394,19 @@ class udpServer(DatagramServer):
     def registerWindowHandles(self, *win_hwhds):
         if self.iohub:
             for wh in win_hwhds:
-                if wh['handle'] not in self.iohub._psychopy_windows.keys():
-                    self.iohub._psychopy_windows[wh['handle']] = wh
-                    wh['size'] = numpy.asarray(wh['size'])
-                    wh['pos'] = numpy.asarray(wh['pos'])
-                    if wh['monitor']:
-                        from psychopy import monitors
-                        monitor = wh['monitor']
-                        monitor['monitor'] = monitors.Monitor('{}'.format(wh['handle']))
-                        monitor['monitor'].setDistance(monitor['distance'])
-                        monitor['monitor'].setWidth(monitor['width'])
-                        monitor['monitor'].setSizePix(monitor['resolution'])
-                    self.iohub.log('Registered Win: {}'.format(wh))
+                if wh not in self.iohub._pyglet_window_hnds:
+                    self.iohub._pyglet_window_hnds.append(wh)
 
     def unregisterWindowHandles(self, *win_hwhds):
         if self.iohub:
             for wh in win_hwhds:
-                if wh in self.iohub._psychopy_windows.keys():
-                    del self.iohub._psychopy_windows[wh]
-                    self.iohub.log('Removed Win: {}'.format(wh))
-
-    def updateWindowPos(self, win_hwhd, pos):
-        """
-        Update stored psychopy window position.
-        :param win_hwhd:
-        :param pos:
-        :return:
-        """
-        winfo = self.iohub._psychopy_windows.get(win_hwhd)
-        if winfo:
-            winfo['pos'] = pos
-            self.iohub.log('Update Win: {}'.format(winfo))
-        else:
-            print2err('warning: win_hwhd {} not registered with iohub server.'.format(win_hwhd))
-            self.iohub.log('updateWindowPos warning: win_hwhd {} not registered with iohub server.'.format(win_hwhd))
+                if wh in self.iohub._pyglet_window_hnds:
+                    self.iohub._pyglet_window_hnds.remove(wh)
 
     def createExperimentSessionEntry(self, sessionInfoDict):
-        sessionInfoDict = convertByteStrings(sessionInfoDict)
+        if PY3:
+            sessionInfoDict = {str(k, 'utf-8'): str(v, 'utf-8')
+                               for k, v in sessionInfoDict.items()}
         self.iohub.sessionInfoDict = sessionInfoDict
         dsfile = self.iohub.dsfile
         if dsfile:
@@ -471,7 +421,7 @@ class udpServer(DatagramServer):
         if dsfile:
             output = []
             for a in numpy_dtype:
-                if isinstance(a[1], str):
+                if isinstance(a[1], basestring):
                     output.append(tuple(a))
                 else:
                     temp = [a[0], []]
@@ -507,19 +457,6 @@ class udpServer(DatagramServer):
         """See Computer.getTime documentation, where current process will be
         the ioHub Server process."""
         return getTime()
-
-    @staticmethod
-    def syncClock(params):
-        """
-        Sync parameters between Computer.global_clock and a given dict.
-
-        Parameters
-        ----------
-        params : dict
-            Dict of attributes and values to apply to the computer's global clock. See
-            `psychopy.clock.MonotonicClock` for what attributes to include.
-        """
-        return syncClock(params)
 
     @staticmethod
     def setPriority(level='normal', disable_gc=False):
@@ -574,17 +511,20 @@ class DeviceMonitor(Greenlet):
             stime = ctime()
             self.device._poll()
             i = self.sleep_interval - (ctime() - stime)
-            gevent.sleep(max(0,i))
+            if i > 0.001:
+                gevent.sleep(i)
+            else:
+                gevent.sleep(0.001)
 
     def __del__(self):
         self.device = None
 
 
-class ioServer():
+class ioServer(object):
     eventBuffer = None
     deviceDict = {}
     _logMessageBuffer = deque(maxlen=128)
-    _psychopy_windows = {}
+    _pyglet_window_hnds = []
     status = 'OFFLINE'
     def __init__(self, rootScriptPathDir, config=None):
         self._session_id = None
@@ -676,15 +616,14 @@ class ioServer():
             print2err('Error PubSub Device listener association ....')
             printExceptionDetailsToStdErr()
 
-    def processDeviceConfigDictionary(self, dev_mod_path, dev_cls_name, dev_conf, def_dev_conf):
+    def processDeviceConfigDictionary(self, dev_mod_path, dev_cls_name,
+                                      dev_conf, def_dev_conf):
         for dparam, dvalue in def_dev_conf.items():
-            if dparam in dev_conf:
-                if isinstance(dvalue, (dict, OrderedDict)):
-                    self.processDeviceConfigDictionary(None, None, dev_conf.get(dparam), dvalue)
-            elif dparam not in dev_conf:
+            if dparam not in dev_conf:
                 if isinstance(dvalue, (dict, OrderedDict)):
                     sub_param = dict()
-                    self.processDeviceConfigDictionary(None, None, sub_param, dvalue)
+                    self.processDeviceConfigDictionary(None, None, sub_param,
+                                                       dvalue)
                     dev_conf[dparam] = sub_param
                 else:
                     dev_conf[dparam] = dvalue
@@ -711,7 +650,7 @@ class ioServer():
                 self._running = False
                 break
             dur = sleep_interval - (Computer.getTime() - stime)
-            gevent.sleep(max(0.0, dur))
+            gevent.sleep(max(0.001, dur))
 
     def createNewMonitoredDevice(self, dev_cls_name, dev_conf):
         self._all_dev_conf_errors = dict()
@@ -788,6 +727,7 @@ class ioServer():
             elif Computer.platform.startswith('linux'):
                 from .devices import pyXHook
                 if hookManager is None:
+                    # iohub.log("Creating pyXHook Monitors....")
                     log_evt = self.config.get('log_raw_kb_mouse_events', False)
                     self._hookManager = pyXHook.HookManager(log_evt)
                     hookManager = self._hookManager
@@ -815,15 +755,15 @@ class ioServer():
                 if self._hookDevice is None:
                     self._hookDevice = []
                 if dev_cls_name not in self._hookDevice:
-                    msgpump_interval = self.config.get('msgpump_interval', 0.001)
                     if dev_cls_name == 'Mouse':
                         dmouse = deviceDict['Mouse']
-                        self.deviceMonitors.append(DeviceMonitor(dmouse, msgpump_interval))
+                        mouseHookMonitor = DeviceMonitor(dmouse, 0.004)
+                        self.deviceMonitors.append(mouseHookMonitor)
                         dmouse._CGEventTapEnable(dmouse._tap, True)
                         self._hookDevice.append('Mouse')
                     if dev_cls_name == 'Keyboard':
                         dkeyboard = deviceDict['Keyboard']
-                        kbHookMonitor = DeviceMonitor(dkeyboard, 0.001)
+                        kbHookMonitor = DeviceMonitor(dkeyboard, 0.004)
                         self.deviceMonitors.append(kbHookMonitor)
                         dkeyboard._CGEventTapEnable(dkeyboard._tap, True)
                         self._hookDevice.append('Keyboard')
@@ -836,8 +776,7 @@ class ioServer():
 
         DeviceClass = None
         cls_name_start = dev_cls_name.rfind('.')
-        # define subdirectory to look in
-        iohub_submod = 'psychopy.iohub.'
+        iohub_submod = '%s.' % _pkgroot
         iohub_submod_len = len(iohub_submod)
         dev_mod_pth = iohub_submod + 'devices.'
         if cls_name_start > 0:
@@ -845,39 +784,15 @@ class ioServer():
             dev_cls_name = dev_cls_name[cls_name_start + 1:]
         else:
             dev_mod_pth += dev_cls_name.lower()
-        # convert subdirectory to path
-        dev_mod = importDeviceModule(dev_mod_pth)
-        dev_file_pth = os.path.dirname(dev_mod.__file__)
-        # get config from path
-        dev_conf_pth = os.path.join(dev_file_pth,
+
+        dev_file_pth = dev_mod_pth[iohub_submod_len:].replace('.', os.path.sep)
+
+        dev_conf_pth = os.path.join(IOHUB_DIRECTORY, dev_file_pth,
                                     'default_%s.yaml' % (dev_cls_name.lower()))
+
         self.log('Loading Device Defaults file: %s' % (dev_cls_name,))
 
-        # Load config, try first from the usual location. If the file isn't 
-        # present, look at the directory the device interface class is located 
-        # in. This additional step is required for devices which are offloaded 
-        # to plugins.
-        try:
-            _dconf = yload(open(dev_conf_pth, 'r'), Loader=yLoader)
-        except FileNotFoundError:
-            # Look for the file using an alternative method, this may be due to
-            # file being located in a plugin directory, for now only the 
-            # EyeTracker device is offloaded to plugins.
-            if dev_cls_name.endswith('EyeTracker'):
-                # Get the path from the object handles which reference the 
-                # file in the plugin directory
-                dev_conf_pth = os.path.dirname(
-                    inspect.getfile(dev_mod.EyeTracker))
-                dev_conf_pth = os.path.join(
-                    dev_conf_pth, 'default_%s.yaml' % (dev_cls_name.lower()))
-                with open(dev_conf_pth, 'r') as conf_file:
-                    _dconf = yload(conf_file, Loader=yLoader)
-            else:
-                print2err(
-                    'ERROR: Device Defaults file not found: %s' % (
-                        dev_cls_name,))
-                return None
-
+        _dconf = yload(open(dev_conf_pth, 'r'), Loader=yLoader)
         _, def_dev_conf = _dconf.popitem()
 
         self.processDeviceConfigDictionary(dev_mod_pth, dev_cls_name, dev_conf,
@@ -979,7 +894,7 @@ class ioServer():
             stime = Computer.getTime()
             self.processDeviceEvents()
             dur = sleep_interval - (Computer.getTime() - stime)
-            gevent.sleep(max(0, dur))
+            gevent.sleep(max(0.001, dur))
 
     def processDeviceEvents(self):
         for device in self.devices:

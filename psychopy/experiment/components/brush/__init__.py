@@ -2,22 +2,33 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
-from pathlib import Path
-from psychopy.experiment.components import BaseVisualComponent, Param, getInitVals, _translate
+from __future__ import absolute_import, print_function
 
+from builtins import str
+from os import path
+from psychopy.experiment.components import BaseVisualComponent, Param, getInitVals, _translate
+from psychopy import logging
+
+# the absolute path to the folder containing this path
+thisFolder = path.abspath(path.dirname(__file__))
+iconFile = path.join(thisFolder, 'brush.png')
+tooltip = _translate('Brush: a drawing tool')
+
+# only use _localized values for label values, nothing functional:
+_localized = {'lineColorSpace': _translate('Line color-space'),
+              'lineColor': _translate('Line color'),
+              'lineWidth': _translate('Line width'),
+              'opacity': _translate('Opacity'),
+              'buttonRequired':_translate('Press button')
+              }
 
 class BrushComponent(BaseVisualComponent):
-    """
-    This component is a freehand drawing tool.
-    """
+    """A class for drawing freehand responses"""
 
     categories = ['Responses']
-    targets = ['PsychoPy', 'PsychoJS']
-    iconFile = Path(__file__).parent / 'brush.png'
-    tooltip = _translate('Brush: a drawing tool')
 
     def __init__(self, exp, parentName, name='brush',
                  lineColor='$[1,1,1]', lineColorSpace='rgb',
@@ -33,72 +44,79 @@ class BrushComponent(BaseVisualComponent):
             startEstim=startEstim, durationEstim=durationEstim)
 
         self.type = 'Brush'
-        self.url = "https://www.psychopy.org/builder/components/brush.html"
+        self.url = "http://www.psychopy.org/builder/components/brush.html"
         self.exp.requirePsychopyLibs(['visual'])
-        self.order.remove("opacity")  # Move opacity to the end
-        self.order += [
-            "lineWidth", "lineColor", "lineColorSpace", "opacity"  # Appearance tab
-        ]
+        self.targets = ['PsychoPy', 'PsychoJS']
+        self.order = ['lineWidth', 'opacity', 'buttonRequired']
 
-        # params
-        msg = _translate("Fill color of this brush")
-        self.params['lineColor'] = Param(
-            lineColor, valType='color', inputType="color", allowedTypes=[], categ='Appearance',
-            updates='constant',
-            allowedUpdates=['constant', 'set every repeat'],
-            hint=msg,
-            label= _translate("Brush color"))
-
-        msg = _translate("Width of the brush's line (always in pixels and limited to 10px max width)")
-        self.params['lineWidth'] = Param(
-            lineWidth, valType='num', inputType="spin", allowedTypes=[], categ='Appearance',
-            updates='constant',
-            allowedUpdates=['constant', 'set every repeat'],
-            hint=msg,
-            label= _translate("Brush size"))
-
-        self.params['lineColorSpace'] = self.params['colorSpace']
-        del self.params['colorSpace']
-
-        msg = _translate("The line opacity")
-        self.params['opacity'].hint=msg
-
-        msg = _translate("Should the participant have to press a button to paint (True), or should it be always on (False)?")
-        self.params['buttonRequired'] = Param(
-            buttonRequired, valType='bool', inputType="bool", allowedTypes=[], categ='Basic',
-            updates='constant',
-            allowedUpdates=['constant', 'set every repeat'],
-            hint=msg,
-            label= _translate("Press button"))
-
-        # Remove BaseVisual params which are not needed
         del self.params['color']  # because color is defined by lineColor
-        del self.params['fillColor']
-        del self.params['borderColor']
+        del self.params['colorSpace']
         del self.params['size']  # because size determined by lineWidth
         del self.params['ori']
         del self.params['pos']
         del self.params['units']  # always in pix
 
+        # params
+        msg = _translate("Line color of this brush; Right-click to bring"
+                         " up a color-picker (rgb only)")
+        self.params['lineColor'] = Param(
+            lineColor, valType='str', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat'],
+            hint=msg,
+            label=_localized['lineColor'], categ='Advanced')
+
+        msg = _translate("Width of the brush's line (always in pixels and limited to 10px max width)")
+        self.params['lineWidth'] = Param(
+            lineWidth, valType='code', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat'],
+            hint=msg,
+            label=_localized['lineWidth'])
+
+        msg = _translate("Choice of color space for the fill color "
+                         "(rgb, dkl, lms, hsv)")
+        self.params['lineColorSpace'] = Param(
+            lineColorSpace, valType='str',
+            allowedVals=['rgb', 'dkl', 'lms', 'hsv'],
+            updates='constant',
+            hint=msg,
+            label=_localized['lineColorSpace'], categ='Advanced')
+
+        msg = _translate("The line opacity")
+        self.params['opacity'] = Param(
+            opacity, valType='code', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat'],
+            hint=msg,
+            label=_localized['opacity'])
+
+        msg = _translate("Whether a button needs to be pressed to draw (True/False)")
+        self.params['buttonRequired'] = Param(
+            buttonRequired, valType='code', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat'],
+            hint=msg,
+            label=_localized['buttonRequired'], categ='Advanced')
+
     def writeInitCode(self, buff):
-        inits = getInitVals(self.params)
-        inits['depth'] = -self.getPosInRoutine()
-        code = (
-            "{name} = visual.Brush(win=win, name='{name}',\n"
-            "   lineWidth={lineWidth},\n"
-            "   lineColor={lineColor},\n"
-            "   lineColorSpace={lineColorSpace},\n"
-            "   opacity={opacity},\n"
-            "   buttonRequired={buttonRequired},\n"
-            "   depth={depth}\n"
-            ")"
-        ).format(**inits)
+        params = getInitVals(self.params)
+        code = ("{name} = visual.Brush(win=win, name='{name}',\n"
+                "   lineWidth={lineWidth},\n"
+                "   lineColor={lineColor},\n"
+                "   lineColorSpace={lineColorSpace},\n"
+                "   opacity={opacity},\n"
+                "   buttonRequired={buttonRequired})").format(name=params['name'],
+                                                lineWidth=params['lineWidth'],
+                                                lineColor=params['lineColor'],
+                                                lineColorSpace=params['lineColorSpace'],
+                                                opacity=params['opacity'],
+                                                buttonRequired=params['buttonRequired'])
         buff.writeIndentedLines(code)
 
     def writeInitCodeJS(self, buff):
         # JS code does not use Brush class
         params = getInitVals(self.params)
-        params['depth'] = -self.getPosInRoutine()
 
         code = ("{name} = {{}};\n"
                 "get{name} = function() {{\n"
@@ -109,10 +127,12 @@ class BrushComponent(BaseVisualComponent):
                 "    lineColor: new util.Color({lineColor}),\n"
                 "    opacity: {opacity},\n"
                 "    closeShape: false,\n"
-                "    autoLog: false,\n"
-                "    depth: {depth}\n"
+                "    autoLog: false\n"
                 "    }}))\n"
-                "}}\n\n").format(**params)
+                "}}\n\n").format(name=params['name'],
+                                 lineWidth=params['lineWidth'],
+                                 lineColor=params['lineColor'],
+                                 opacity=params['opacity'])
 
         buff.writeIndentedLines(code)
         # add reset function

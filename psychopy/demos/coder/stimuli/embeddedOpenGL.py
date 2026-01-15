@@ -6,7 +6,9 @@ This demo shows how you can make standard opengl calls within a psychopy
 script, allowing you to draw anything that OpenGL can draw (i.e. anything).
 """
 
-from psychopy import visual, core
+from __future__ import division
+
+from psychopy import visual, core, event
 from pyglet import gl
 
 win = visual.Window([600, 600], units='norm', monitor='testMonitor')

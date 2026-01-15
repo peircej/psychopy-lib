@@ -2,24 +2,27 @@
 # -*- coding: utf-8 -*-
 
 # Part of the PsychoPy library
-# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2024 Open Science Tools Ltd.
+# Copyright (C) 2002-2018 Jonathan Peirce (C) 2019-2020 Open Science Tools Ltd.
 # Distributed under the terms of the MIT License.
 
 """To build simple dialogues etc. (requires wxPython)
 """
 
+from __future__ import absolute_import, print_function
+
+from builtins import str
+from builtins import super
+from builtins import range
 from psychopy import logging
 import wx
 import numpy
 import os
 from psychopy.localization import _translate
-from packaging.version import Version
-
-from psychopy.tools.arraytools import IndexDict
+from pkg_resources import parse_version
 
 OK = wx.ID_OK
 
-thisVer = Version(wx.__version__)
+thisVer = parse_version(wx.__version__)
 
 def ensureWxApp():
     # make sure there's a wxApp prior to showing a gui, e.g., for expInfo
@@ -28,9 +31,9 @@ def ensureWxApp():
         wx.Dialog(None, -1)  # not shown; FileDialog gives same exception
         return True
     except wx._core.PyNoAppError:
-        if thisVer < Version('2.9'):
+        if thisVer < parse_version('2.9'):
             return wx.PySimpleApp()
-        elif thisVer >= Version('4.0') and thisVer < Version('4.1'):
+        elif thisVer >= parse_version('4.0') and thisVer < parse_version('4.1'):
             raise Exception(
                     "wx>=4.0 clashes with pyglet and making it unsafe "
                     "as a PsychoPy gui helper. Please install PyQt (4 or 5)"
@@ -178,7 +181,13 @@ class Dlg(wx.Dialog):
         :return: self.data
         """
         # add buttons for OK and Cancel
-        buttons = self.CreateStdDialogButtonSizer(flags=wx.OK | wx.CANCEL)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        OK = wx.Button(self, wx.ID_OK, self.labelButtonOK)
+        OK.SetDefault()
+
+        buttons.Add(OK)
+        CANCEL = wx.Button(self, wx.ID_CANCEL, self.labelButtonCancel)
+        buttons.Add(CANCEL)
         self.sizer.Add(buttons, 1, flag=wx.ALIGN_RIGHT, border=5)
 
         self.SetSizerAndFit(self.sizer)
@@ -284,9 +293,10 @@ class DlgFromDict(Dlg):
         # app = ensureWxApp() done by Dlg
         super().__init__(title)
 
-        self.copyDict = copyDict
-        self.originalDictionary = dictionary
-        self.dictionary = IndexDict(dictionary)
+        if copyDict:
+            self.dictionary = dictionary.copy()
+        else:
+            self.dictionary = dictionary
 
         self._keys = list(self.dictionary.keys())
 
@@ -320,11 +330,6 @@ class DlgFromDict(Dlg):
         if self.OK:
             for n, thisKey in enumerate(self._keys):
                 self.dictionary[thisKey] = self.data[n]
-            # if not copying dict, set values in-place
-            if not self.copyDict:
-                self.originalDictionary[thisKey] = self.data[thisKey]
-            
-            return self.dictionary
 
 
 def fileSaveDlg(initFilePath="", initFileName="",
@@ -348,7 +353,7 @@ def fileSaveDlg(initFilePath="", initFileName="",
         allowed: string
             A string to specify file filters.
             e.g. "BMP files (*.bmp)|*.bmp|GIF files (*.gif)|*.gif"
-            See https://docs.wxpython.org/wx.FileDialog.html
+            See http://www.wxpython.org/docs/api/wx.FileDialog-class.html
             for further details
 
     If initFilePath or initFileName are empty or invalid then
@@ -393,7 +398,7 @@ def fileOpenDlg(tryFilePath="",
         allowed: string (available since v1.62.01)
             a string to specify file filters.
             e.g. "BMP files (*.bmp)|*.bmp|GIF files (*.gif)|*.gif"
-            See https://docs.wxpython.org/wx.FileDialog.html
+            See http://www.wxpython.org/docs/api/wx.FileDialog-class.html
             for further details
 
     If tryFilePath or tryFileName are empty or invalid then

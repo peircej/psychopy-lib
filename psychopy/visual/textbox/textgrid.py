@@ -6,6 +6,10 @@ Created on Mon Jan 07 11:18:51 2013
 
 @author: Sol
 """
+from __future__ import absolute_import, print_function
+
+from builtins import range
+from builtins import object
 import numpy as np
 from weakref import proxy
 from psychopy import core
@@ -20,7 +24,7 @@ from . import parsedtext
 getTime = core.getTime
 
 
-class TextGrid:
+class TextGrid(object):
 
     def __init__(self, text_box, line_color=None, line_width=1,
                  font_color=(1, 1, 1, 1), shape=None,
@@ -57,11 +61,8 @@ class TextGrid:
         if shape:
             self._shape = shape
         else:
-            if (te_size[0] >= self._cell_size[0]) and (te_size[1] >= self._cell_size[1]):
-                self._shape = (te_size[0] // self._cell_size[0],
-                               te_size[1] // self._cell_size[1])
-            else:
-                raise ValueError(f"Invalid TextBox size provided. Increase size or use `textgrid_shape` for more precise control.")
+            self._shape = (te_size[0] // self._cell_size[0],
+                           te_size[1] // self._cell_size[1])
 
         self._size = (self._cell_size[0] * self._shape[0],
                       self._cell_size[1] * self._shape[1])
@@ -195,6 +196,10 @@ class TextGrid:
             dl_index = glGenLists(1)
             glNewList(dl_index, GL_COMPILE)
 
+            # stime=getTime()
+
+            # self._text_box._te_start_gl()
+
             ###
             glActiveTexture(GL_TEXTURE0)
             glEnable(GL_TEXTURE_2D)
@@ -267,12 +272,9 @@ class TextGrid:
             # etime=getTime()
 
     def __del__(self):
-        try:
-            self._text_document._free()
-            del self._text_document
-            if self._text_dlist:
-                glDeleteLists(self._text_dlist, 1)
-                self._text_dlist = 0
-            self._current_font_display_lists = None
-        except (ModuleNotFoundError, ImportError, AttributeError):
-            pass
+        if self._text_dlist:
+            glDeleteLists(self._text_dlist, 1)
+            self._text_dlist = 0
+        self._current_font_display_lists = None
+        self._text_document._free()
+        del self._text_document

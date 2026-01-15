@@ -15,6 +15,10 @@ their experiment vary by locale. If they do, it is easy enough for them to
 create multiple versions of an experiment.
 """
 
+from __future__ import absolute_import, print_function
+
+from builtins import map
+from builtins import str
 import platform
 macVer = platform.mac_ver()[0]  # e.g., '10.9.5' or '' for non-Mac
 
@@ -28,14 +32,4 @@ if macVer:
         from psychopy import prefs
         if not prefs.app['locale']:
             prefs.app['locale'] = u'en_US'
-        
-        # set the requested locale
-        reqLocale = str(prefs.app['locale'])
-        reqLocale += '.UTF-8'
-        try:
-            locale.setlocale(locale.LC_ALL, reqLocale)
-        except locale.Error:
-            # locale not found, use en_US.UTF-8
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            print('Warning: locale {} not found, using en_US.UTF-8'.format(
-                reqLocale))
+        locale.setlocale(locale.LC_ALL, str(prefs.app['locale']) + '.UTF-8')

@@ -6,6 +6,10 @@ Created on Sat May 25 00:09:01 2013
 
 @author: Sol
 """
+from __future__ import absolute_import, print_function
+
+from builtins import range
+from builtins import object
 from textwrap import TextWrapper
 import io
 import os
@@ -13,7 +17,7 @@ from collections import deque
 from weakref import proxy
 
 
-class ParsedTextDocument:
+class ParsedTextDocument(object):
 
     def __init__(self, text_data, text_grid):
         if os.path.isfile(text_data):
@@ -236,7 +240,7 @@ class ParsedTextDocument:
 import numpy
 
 
-class ParsedTextLine:
+class ParsedTextLine(object):
     charcodes_with_glyphs = None
     replacement_charcode = None
 
@@ -255,7 +259,9 @@ class ParsedTextLine:
 
         self.updateOrds(self._text)
 
-        self._gl_display_list = numpy.zeros(parent._num_columns, numpy.uint32)
+        # self.text_region_flags=numpy.ones((2,parent._num_columns),
+        #   numpy.uint32)#*parent._text_grid.default_region_type_key
+        self._gl_display_list = numpy.zeros(parent._num_columns, numpy.uint)
 
     def updateOrds(self, text):
         if ParsedTextLine.charcodes_with_glyphs is None:
